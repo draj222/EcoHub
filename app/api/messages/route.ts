@@ -3,6 +3,21 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 
+interface MockUser {
+  id: string;
+  name: string;
+  image: string | null;
+}
+
+interface Conversation {
+  id: string;
+  name: string | null;
+  image: string | null;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+}
+
 // GET endpoint to fetch recent conversations
 export async function GET(request: NextRequest) {
   try {
@@ -58,7 +73,7 @@ export async function GET(request: NextRequest) {
         // If we don't have this conversation yet, initialize it
         if (!conversationsMap.has(otherUserId)) {
           // Define mock user data based on known IDs
-          let mockUser = {
+          let mockUser: MockUser = {
             id: otherUserId,
             name: "Unknown User",
             image: null
@@ -91,7 +106,7 @@ export async function GET(request: NextRequest) {
             lastMessage: "",
             lastMessageTime: new Date(0).toISOString(),
             unreadCount: 0
-          });
+          } as Conversation);
         }
         
         const conversation = conversationsMap.get(otherUserId);
@@ -111,7 +126,7 @@ export async function GET(request: NextRequest) {
       // If we have no stored conversations but need mock data
       if (conversationsMap.size === 0) {
         // Create mock conversations
-        const mockConversations = [
+        const mockConversations: Conversation[] = [
           {
             id: "user2", 
             name: "Jane Smith",
