@@ -193,33 +193,60 @@ export default function ProfilePage() {
     setError("");
     
     try {
-      // Step 1: Create a new FormData instance
+      console.log("Starting upload for file:", selectedFile.name);
+      
+      // Step 1: Create FormData with the file
       const formData = new FormData();
       formData.append("file", selectedFile);
       
-      console.log("Starting upload for file:", selectedFile.name);
-      
-      // Step 2: Upload the file
+      // Step 2: Attempt to upload the file with retries
       let uploadResponse;
+      let result;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (attempts < maxAttempts) {
+        attempts++;
+        console.log(`Upload attempt ${attempts}/${maxAttempts}`);
+        
+        try {
+          // Send the upload request
+          uploadResponse = await fetch("/api/upload", {
+            method: "POST",
+            body: formData
+          });
+          
+          result = await uploadResponse.json();
+          
+          if (uploadResponse.ok && result.fileUrl) {
+            console.log("Upload successful on attempt", attempts);
+            break; // Success, exit the retry loop
+          } else {
+            console.error("Upload failed, response:", result);
+            // If this was the last attempt, throw error to be caught in outer catch
+            if (attempts === maxAttempts) {
+              throw new Error(result.error || result.details || "Failed to upload image");
+            }
+            // Otherwise wait before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } catch (fetchError) {
+          console.error(`Upload attempt ${attempts} fetch error:`, fetchError);
+          if (attempts === maxAttempts) {
+            throw fetchError;
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      if (!result?.fileUrl) {
+        throw new Error("No file URL returned from server");
+      }
+      
+      console.log("File uploaded successfully:", result.fileUrl);
+      
+      // Step 3: Update the user's profile with the new image URL
       try {
-        uploadResponse = await fetch("/api/upload", {
-          method: "POST",
-          body: formData
-        });
-        
-        const result = await uploadResponse.json();
-        
-        if (!uploadResponse.ok) {
-          throw new Error(result.error || "Failed to upload image to server");
-        }
-        
-        if (!result.fileUrl) {
-          throw new Error("No file URL returned from server");
-        }
-        
-        console.log("File uploaded successfully:", result.fileUrl);
-        
-        // Step 3: Update the user's profile with the new image URL
         const profileUpdateResponse = await fetch("/api/users/profile", {
           method: "PATCH",
           headers: {
@@ -257,20 +284,30 @@ export default function ProfilePage() {
           setPreviewUrl(null);
         }
         
-        // Refresh without full page reload
-        router.refresh();
+        // Show success message
+        setError("");
         
-      } catch (err) {
-        console.error("Error in upload process:", err);
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("An unknown error occurred during upload");
-        }
+        // Refresh without full page reload
+        window.location.reload();
+        
+      } catch (profileError) {
+        console.error("Error updating profile:", profileError);
+        throw new Error("Profile was not updated. Please try again.");
       }
     } catch (err) {
-      console.error("Error in upload handler:", err);
-      setError("Failed to process file for upload");
+      console.error("Error in upload process:", err);
+      let errorMessage = "Failed to upload image";
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
+      // Make the error message more user-friendly
+      if (errorMessage.includes("saving file")) {
+        errorMessage = "Unable to save your image. Please try a different image or try again later.";
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsUpdatingImage(false);
     }

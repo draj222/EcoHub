@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
 import fs from "fs";
 import path from "path";
 import { getServerSession } from "next-auth";
@@ -49,65 +48,86 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create simple file extension mapping
-    const typeToExt: Record<string, string> = {
+    // Get file extension based on mime type
+    const extensionMap = {
       "image/jpeg": "jpg",
-      "image/png": "png", 
+      "image/png": "png",
       "image/gif": "gif",
       "image/webp": "webp"
     };
-    
-    // Get appropriate extension based on mimetype
-    const extension = typeToExt[file.type] || "jpg";
+    const extension = extensionMap[file.type as keyof typeof extensionMap] || "jpg";
     
     // Create a unique filename
     const uniqueId = randomUUID();
     const filename = `${uniqueId}.${extension}`;
     console.log(`📝 Generated filename: ${filename}`);
     
-    // Ensure upload directory exists
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    console.log(`📂 Upload directory: ${uploadsDir}`);
-    
-    if (!fs.existsSync(uploadsDir)) {
-      console.log("📂 Creating uploads directory");
-      await mkdir(uploadsDir, { recursive: true });
-    }
-    
-    // Full path for the file
-    const filePath = path.join(uploadsDir, filename);
+    // Ensure uploads directory exists
+    const publicDir = path.join(process.cwd(), "public");
+    const uploadsDir = path.join(publicDir, "uploads");
     
     try {
-      // Convert file to buffer and write to disk
+      // Create directories if they don't exist
+      if (!fs.existsSync(publicDir)) {
+        console.log("📂 Creating public directory");
+        fs.mkdirSync(publicDir);
+      }
+      
+      if (!fs.existsSync(uploadsDir)) {
+        console.log("📂 Creating uploads directory");
+        fs.mkdirSync(uploadsDir);
+      }
+      
+      // Set directory permissions
+      fs.chmodSync(uploadsDir, 0o777);
+      console.log(`📂 Upload directory permissions set: ${uploadsDir}`);
+      
+      // Convert file to buffer
       console.log("📤 Converting file to buffer...");
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
       
+      // Full path for the file
+      const filePath = path.join(uploadsDir, filename);
+      
+      // Write file synchronously to avoid potential async issues
       console.log(`💾 Writing file to: ${filePath}`);
-      await writeFile(filePath, buffer);
-      console.log(`✅ File successfully written to disk`);
+      fs.writeFileSync(filePath, buffer);
       
-      // Return the URL path for the file (for use in <Image> components)
-      const fileUrl = `/uploads/${filename}`;
-      console.log(`🔗 File URL: ${fileUrl}`);
+      // Verify file was written successfully
+      if (fs.existsSync(filePath)) {
+        console.log(`✅ File successfully written to disk (${fs.statSync(filePath).size} bytes)`);
+        
+        // Return the URL path for the file
+        const fileUrl = `/uploads/${filename}`;
+        console.log(`🔗 File URL: ${fileUrl}`);
+        
+        return NextResponse.json({
+          success: true,
+          fileUrl,
+          message: "File uploaded successfully"
+        });
+      } else {
+        throw new Error("File was not written to disk");
+      }
+    } catch (fsError) {
+      console.error("❌ Filesystem error:", fsError);
+      console.error("Stack trace:", fsError instanceof Error ? fsError.stack : "No stack trace");
       
-      return NextResponse.json({
-        success: true,
-        fileUrl,
-        message: "File uploaded successfully"
-      });
-    } catch (err) {
-      console.error("❌ Error writing file:", err);
       return NextResponse.json({ 
-        error: "Error saving file to server" 
+        error: "Error saving file to server",
+        details: fsError instanceof Error ? fsError.message : "Unknown filesystem error" 
       }, { 
         status: 500 
       });
     }
   } catch (error) {
     console.error("❌ Error in upload handler:", error);
+    console.error("Stack trace:", error instanceof Error ? error.stack : "No stack trace");
+    
     return NextResponse.json({ 
-      error: "Server error processing upload" 
+      error: "Server error processing upload",
+      details: error instanceof Error ? error.message : "Unknown error" 
     }, { 
       status: 500 
     });
