@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       }
       
       // Filter messages that involve the current user and the requested user
-      const relevantMessages = storedMessages.filter(msg => 
+      const relevantMessages = storedMessages.filter((msg: { senderId: string; receiverId: string }) => 
         (msg.senderId === userId && msg.receiverId === otherUserId) || 
         (msg.senderId === otherUserId && msg.receiverId === userId)
       );
@@ -179,7 +179,9 @@ export async function GET(request: NextRequest) {
       }
       
       // Sort messages by creation time
-      mockMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      mockMessages.sort((a: { createdAt: string }, b: { createdAt: string }) => 
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
 
       // Mark unread messages as read in the local storage
       if (storedMessages.length > 0) {
@@ -188,7 +190,7 @@ export async function GET(request: NextRequest) {
           const path = require('path');
           const messagesFilePath = path.join(process.cwd(), 'dev-messages.json');
           
-          const updatedMessages = storedMessages.map(msg => {
+          const updatedMessages = storedMessages.map((msg: { senderId: string; receiverId: string; isRead?: boolean }) => {
             if (msg.senderId === otherUserId && msg.receiverId === userId && !msg.isRead) {
               return { ...msg, isRead: true };
             }
@@ -308,7 +310,7 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
     const requestData = await request.json();
-    const { receiverId, content, metadata } = requestData;
+    const { receiverId, content } = requestData;
     
     if (!receiverId || !content || content.trim() === "") {
       return NextResponse.json(
@@ -352,7 +354,6 @@ export async function POST(request: NextRequest) {
         isRead: false,
         senderId: userId,
         receiverId,
-        metadata: metadata || null, // Store metadata if provided
         sender: {
           id: userId,
           name: session.user.name,
@@ -415,7 +416,6 @@ export async function POST(request: NextRequest) {
         content,
         senderId: userId,
         receiverId,
-        metadata: metadata ? JSON.stringify(metadata) : null, // Store metadata as JSON string
       },
       include: {
         sender: {
