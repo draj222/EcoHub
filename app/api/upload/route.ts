@@ -58,33 +58,55 @@ export async function POST(request: NextRequest) {
     try {
       console.log("🔄 Processing file...");
       
-      // Get file extension
-      const ext = path.extname(file.name);
-      // Generate unique filename
-      const filename = `${uuidv4()}${ext}`;
-      // Create uploads directory path
-      const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+      // Check if we're in production (Vercel) or development
+      const isProduction = process.env.NODE_ENV === 'production';
+      console.log(`🌐 Environment: ${isProduction ? 'Production' : 'Development'}`);
       
-      // Check if uploads directory exists, create it if not
-      if (!existsSync(uploadsDir)) {
-        console.log("📁 Creating uploads directory:", uploadsDir);
-        await mkdir(uploadsDir, { recursive: true });
+      let fileUrl = '';
+      
+      if (isProduction) {
+        // In production, convert image to base64 for storage in database
+        console.log("💾 Converting image to base64 for database storage...");
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        
+        // Convert to base64 with data URL prefix for direct use in img tags
+        const imageType = file.type;
+        const base64Image = `data:${imageType};base64,${buffer.toString('base64')}`;
+        console.log("✅ Image converted to base64 successfully");
+        
+        fileUrl = base64Image;
+      } else {
+        // In development, save to the file system
+        // Get file extension
+        const ext = path.extname(file.name);
+        // Generate unique filename
+        const filename = `${uuidv4()}${ext}`;
+        // Create uploads directory path
+        const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+        
+        // Check if uploads directory exists, create it if not
+        if (!existsSync(uploadsDir)) {
+          console.log("📁 Creating uploads directory:", uploadsDir);
+          await mkdir(uploadsDir, { recursive: true });
+        }
+        
+        // Full file path
+        const filepath = path.join(uploadsDir, filename);
+        
+        // Convert file to buffer
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        
+        // Write file to disk
+        await writeFile(filepath, buffer);
+        console.log("✅ File saved to:", filepath);
+        
+        // Generate public URL
+        fileUrl = `/uploads/${filename}`;
       }
       
-      // Full file path
-      const filepath = path.join(uploadsDir, filename);
-      
-      // Convert file to buffer
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      
-      // Write file to disk
-      await writeFile(filepath, buffer);
-      console.log("✅ File saved to:", filepath);
-      
-      // Generate public URL
-      const fileUrl = `/uploads/${filename}`;
-      console.log("🔗 Public URL generated:", fileUrl);
+      console.log("🔗 File URL generated:", fileUrl.substring(0, 50) + '...');
 
       return NextResponse.json({
         success: true,
@@ -93,12 +115,16 @@ export async function POST(request: NextRequest) {
       });
     } catch (error) {
       console.error("❌ Error processing file:", error);
-      return NextResponse.json({ error: "Error processing file" }, { status: 500 });
+      return NextResponse.json({ 
+        error: "Error processing file",
+        details: error instanceof Error ? error.message : String(error)
+      }, { status: 500 });
     }
   } catch (error) {
     console.error("❌ Error in upload handler:", error);
     return NextResponse.json({ 
-      error: "Server error"
+      error: "Server error",
+      details: error instanceof Error ? error.message : String(error)
     }, { 
       status: 500 
     });
