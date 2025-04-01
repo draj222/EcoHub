@@ -34,7 +34,11 @@ export async function PATCH(request: NextRequest) {
     
     // Get the request body
     const data = await request.json();
-    console.log("📝 Request data received (not logging image data for privacy)");
+    console.log("📝 Request data received:", { 
+      ...data, 
+      name: data.name || 'not provided',
+      image: data.image ? `${data.image.substring(0, 30)}...` : 'not provided' 
+    });
     
     const { name, image } = data;
     
@@ -51,22 +55,19 @@ export async function PATCH(request: NextRequest) {
     const updateData: { name?: string; image?: string } = {};
     if (name) updateData.name = name;
     if (image) {
-      // Make sure image data isn't too large (10MB limit)
-      if (image.length > 10 * 1024 * 1024) {
-        console.log("❌ Image data too large");
-        return NextResponse.json(
-          { error: "Image data exceeds 10MB limit" },
-          { status: 400 }
-        );
-      }
-      
-      console.log(`🖼️ Image data received (length: ${image.length} characters)`);
+      console.log(`🖼️ Image data received: ${image.substring(0, 30)}...`);
       updateData.image = image;
     }
 
     try {
       // Update the user
       console.log(`🔄 Updating user with ID: ${userId}`);
+      console.log(`🔄 Update data:`, { 
+        ...updateData, 
+        name: updateData.name || 'not changing',
+        image: updateData.image ? 'changing' : 'not changing'
+      });
+      
       const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: updateData,
@@ -79,6 +80,11 @@ export async function PATCH(request: NextRequest) {
       });
       
       console.log("✅ User profile updated successfully");
+      console.log("✅ Updated user data:", { 
+        ...updatedUser, 
+        image: updatedUser.image ? 'exists' : 'missing'
+      });
+      
       return NextResponse.json({
         success: true,
         user: updatedUser

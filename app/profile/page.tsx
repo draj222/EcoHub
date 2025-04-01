@@ -65,6 +65,7 @@ export default function ProfilePage() {
   const [isLikedLoading, setIsLikedLoading] = useState(true);
   const [error, setError] = useState("");
   const [isUpdatingImage, setIsUpdatingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Redirect unauthenticated users
@@ -139,26 +140,41 @@ export default function ProfilePage() {
     }
   };
 
-  const uploadProfileImage = async () => {
+  const uploadProfileImage = async (file: File) => {
     setIsUpdatingImage(true);
     setError("");
     
     try {
-      // Get a placeholder profile image
-      const response = await fetch("/api/upload", {
-        method: "POST"
+      console.log("Starting profile image upload...");
+      console.log("File:", file.name, file.type, file.size);
+      
+      // Create FormData and append the file
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      console.log("Uploading file to /api/upload...");
+      // Upload the image - don't set Content-Type header, browser will set it with boundary
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+        // Remove any headers so browser can set the correct multipart/form-data with boundary
       });
       
-      if (!response.ok) {
-        throw new Error("Failed to get profile image URL");
+      console.log("Upload response status:", uploadResponse.status);
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        console.error("Upload error:", errorData);
+        throw new Error(`Failed to upload image: ${errorData.error || 'Unknown error'}`);
       }
       
-      const result = await response.json();
+      const uploadResult = await uploadResponse.json();
+      console.log("Upload result:", uploadResult);
       
-      if (!result.fileUrl) {
-        throw new Error("No image URL returned");
+      if (!uploadResult.fileUrl) {
+        throw new Error("No image URL returned from server");
       }
       
+      console.log("Updating user profile with new image URL:", uploadResult.fileUrl);
       // Update the user profile with the image URL
       const profileResponse = await fetch("/api/users/profile", {
         method: "PATCH",
@@ -166,30 +182,58 @@ export default function ProfilePage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          image: result.fileUrl 
+          image: uploadResult.fileUrl 
         }),
       });
       
+      console.log("Profile update response status:", profileResponse.status);
       if (!profileResponse.ok) {
-        throw new Error("Failed to update profile");
+        const errorData = await profileResponse.json();
+        console.error("Profile update error:", errorData);
+        throw new Error(`Failed to update profile: ${errorData.error || 'Unknown error'}`);
       }
       
+      const profileResult = await profileResponse.json();
+      console.log("Profile update result:", profileResult);
+      
+      console.log("Updating session with new image...");
       // Update the session
       await update({
         ...session,
         user: {
           ...session?.user,
-          image: result.fileUrl
+          image: uploadResult.fileUrl
         }
       });
       
+      console.log("Upload process completed successfully!");
       // Reload the page to show updated image
-      window.location.reload();
+      router.refresh();
     } catch (err) {
       console.error("Error updating profile picture:", err);
-      setError("Failed to update profile picture. Please try again.");
+      setError(`Failed to update profile picture: ${err instanceof Error ? err.message : 'Please try again.'}`);
     } finally {
       setIsUpdatingImage(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError("Please select an image file");
+        return;
+      }
+      
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        setError("Image size must be less than 10MB");
+        return;
+      }
+      
+      await uploadProfileImage(file);
     }
   };
 
@@ -227,7 +271,7 @@ export default function ProfilePage() {
                   )}
                   
                   <button 
-                    onClick={uploadProfileImage}
+                    onClick={() => fileInputRef.current?.click()}
                     className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <FiCamera className="text-white text-xl" />
@@ -246,7 +290,7 @@ export default function ProfilePage() {
                   
                   <div className="mt-4">
                     <button
-                      onClick={uploadProfileImage}
+                      onClick={() => fileInputRef.current?.click()}
                       disabled={isUpdatingImage}
                       className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition flex items-center justify-center mx-auto md:mx-0"
                     >
@@ -584,6 +628,13 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        className="hidden"
+      />
     </div>
   );
 } 
