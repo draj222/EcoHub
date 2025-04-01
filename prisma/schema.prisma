@@ -5,8 +5,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Account {
@@ -44,6 +44,7 @@ model User {
   image         String?
   password      String?
   bio           String?
+  preferences   String?   // Stored as JSON string
   
   accounts      Account[]
   sessions      Session[]
