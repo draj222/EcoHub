@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import fs from "fs";
+import path from "path";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 import { randomUUID } from "crypto";
@@ -18,24 +19,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify content type
-    const contentType = request.headers.get("content-type") || "";
-    if (!contentType.includes("multipart/form-data")) {
-      console.log(`Invalid content type: ${contentType}. Expected multipart/form-data.`);
-      console.log("Headers:", Object.fromEntries(request.headers.entries()));
-    }
-
     // Process the form data
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
-    
-    console.log("Received file upload request:", 
-      file ? {
-        name: file.name,
-        type: file.type,
-        size: file.size
-      } : "No file"
-    );
     
     if (!file) {
       return NextResponse.json(
@@ -44,72 +30,72 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
+    // Log received file details
+    console.log(`Received file: ${file.name}, type: ${file.type}, size: ${file.size} bytes`);
+    
+    // Basic validation
     const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     if (!validTypes.includes(file.type)) {
-      console.log(`Invalid file type: ${file.type}. Allowed types: ${validTypes.join(', ')}`);
       return NextResponse.json(
         { error: `Invalid file type: ${file.type}. Only JPEG, PNG, GIF, and WebP are allowed.` },
         { status: 400 }
       );
     }
 
+    // Create simple file extension mapping
+    const typeToExt: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png", 
+      "image/gif": "gif",
+      "image/webp": "webp"
+    };
+    
+    // Get appropriate extension based on mimetype
+    const extension = typeToExt[file.type] || "jpg";
+    
+    // Create a unique filename
+    const uniqueId = randomUUID();
+    const filename = `${uniqueId}.${extension}`;
+    
+    // Ensure upload directory exists
+    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      await mkdir(uploadsDir, { recursive: true });
+    }
+    
+    // Full path for the file
+    const filePath = path.join(uploadsDir, filename);
+    
     try {
-      // Create a unique filename
-      const buffer = await file.arrayBuffer();
-      const uniqueId = randomUUID();
+      // Convert file to buffer and write to disk
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
       
-      // Get proper file extension with fallback
-      let extension = "jpg";
-      if (file.name) {
-        const parts = file.name.split(".");
-        if (parts.length > 1) {
-          extension = parts[parts.length - 1];
-        }
-      }
+      await writeFile(filePath, buffer);
+      console.log(`File successfully written to: ${filePath}`);
       
-      // Ensure extension is valid
-      const safeExtension = extension.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const filename = `${uniqueId}.${safeExtension}`;
+      // Return the URL path for the file (for use in <Image> components)
+      const fileUrl = `/uploads/${filename}`;
       
-      // Ensure the uploads directory exists
-      const uploadDir = join(process.cwd(), "public", "uploads");
-      await mkdir(uploadDir, { recursive: true });
-      console.log(`Upload directory: ${uploadDir}`);
-      
-      // Write the file
-      const filepath = join(uploadDir, filename);
-      try {
-        await writeFile(filepath, Buffer.from(buffer));
-        console.log(`File successfully written to: ${filepath}`);
-        
-        // Return the file URL
-        const fileUrl = `/uploads/${filename}`;
-        console.log(`File URL: ${fileUrl}`);
-        
-        return NextResponse.json({ 
-          success: true, 
-          fileUrl 
-        });
-      } catch (writeError) {
-        console.error("Error writing file:", writeError);
-        return NextResponse.json(
-          { error: "Unable to save uploaded file. Please try again." },
-          { status: 500 }
-        );
-      }
-    } catch (fileError: unknown) {
-      console.error("File processing error:", fileError);
-      return NextResponse.json(
-        { error: "Error processing file. Please try a different image." },
-        { status: 500 }
-      );
+      return NextResponse.json({
+        success: true,
+        fileUrl,
+        message: "File uploaded successfully"
+      });
+    } catch (err) {
+      console.error("Error writing file:", err);
+      return NextResponse.json({ 
+        error: "Error saving file to server" 
+      }, { 
+        status: 500 
+      });
     }
   } catch (error) {
-    console.error("Error uploading file:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to upload file" },
-      { status: 500 }
-    );
+    console.error("Error in upload handler:", error);
+    return NextResponse.json({ 
+      error: "Server error processing upload" 
+    }, { 
+      status: 500 
+    });
   }
 } 

@@ -193,76 +193,55 @@ export default function ProfilePage() {
     setError("");
     
     try {
-      // Create a FormData object to send the file
+      // Create a simple FormData object
       const formData = new FormData();
       formData.append("file", selectedFile);
       
-      console.log("Uploading file:", selectedFile.name, selectedFile.type, selectedFile.size);
-      
-      // Upload the file
-      const uploadResponse = await fetch("/api/upload", {
+      // Simple direct upload
+      const response = await fetch("/api/upload", {
         method: "POST",
-        body: formData,
+        body: formData
       });
       
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
-        console.error("Upload response error:", errorData);
-        throw new Error(errorData.error || "Failed to upload image");
+      // Parse the JSON response
+      const result = await response.json();
+      
+      // Check for errors
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to upload image");
       }
       
-      const uploadData = await uploadResponse.json();
-      console.log("Upload response:", uploadData);
-      
-      if (!uploadData.fileUrl) {
-        throw new Error("No file URL returned from upload");
+      if (!result.fileUrl) {
+        throw new Error("No file URL returned from server");
       }
       
-      // Update the user's profile with the new image URL
-      const updateResponse = await fetch("/api/users/profile", {
+      // Update the user profile with the new image URL
+      const profileResponse = await fetch("/api/users/profile", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ image: uploadData.fileUrl }),
+        body: JSON.stringify({ image: result.fileUrl }),
       });
-
-      if (!updateResponse.ok) {
-        const errorData = await updateResponse.json();
-        console.error("Profile update error:", errorData);
-        throw new Error(errorData.error || "Failed to update profile image");
-      }
-
-      const userData = await updateResponse.json();
-      console.log("Profile updated:", userData);
-
-      // Update the session with the new image
-      await update({ image: uploadData.fileUrl });
       
-      // Reset state
+      if (!profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        throw new Error(profileData.error || "Failed to update profile");
+      }
+      
+      // Update the session
+      await update({ image: result.fileUrl });
+      
+      // Clear state
       setSelectedFile(null);
-      setShowImageForm(false);
+      setPreviewUrl(null);
+      
+      // Refresh the page to show the updated image
+      window.location.reload();
       
     } catch (err) {
-      console.error("Error updating profile image:", err);
-      
-      // Create more user-friendly error messages
-      let userMessage = "Failed to update profile image. Please try again.";
-      
-      if (err instanceof Error) {
-        // Handle specific error cases
-        if (err.message.includes("processing file")) {
-          userMessage = "There was a problem with your image file. Please try a different image.";
-        } else if (err.message.includes("file type")) {
-          userMessage = "Please upload a valid image file (JPEG, PNG, GIF, or WebP).";
-        } else if (err.message.toLowerCase().includes("network") || err.message.toLowerCase().includes("failed to fetch")) {
-          userMessage = "Network error. Please check your connection and try again.";
-        }
-      }
-      
-      setError(userMessage);
-      
-      // Don't clear the selected file, so user can retry
+      console.error("Upload error:", err);
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setIsUpdatingImage(false);
     }
@@ -334,7 +313,7 @@ export default function ProfilePage() {
                           type="file"
                           ref={fileInputRef}
                           onChange={handleFileChange}
-                          accept="image/*"
+                          accept="image/jpeg, image/png, image/gif, image/webp"
                           className="hidden"
                         />
                         <div className="flex flex-col gap-2">
@@ -718,7 +697,7 @@ export default function ProfilePage() {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                accept="image/*"
+                accept="image/jpeg, image/png, image/gif, image/webp"
                 className="hidden"
               />
               
@@ -728,6 +707,8 @@ export default function ProfilePage() {
               >
                 <FiUpload className="mx-auto text-gray-400 text-3xl mb-2" />
                 <p className="text-gray-500">Click to select an image</p>
+                <p className="text-xs text-gray-400 mt-2">Supported formats: JPEG, PNG, GIF, WebP</p>
+                <p className="text-xs text-gray-400">Max size: 5MB</p>
               </div>
             </div>
             
