@@ -180,6 +180,9 @@ export default function ProfilePage() {
       }
       const fileUrl = URL.createObjectURL(file);
       setPreviewUrl(fileUrl);
+      
+      // Close the modal after selecting a file
+      setShowImageForm(false);
     }
   };
 
@@ -709,23 +712,10 @@ export default function ProfilePage() {
               
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-green-500 transition"
+                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-green-500 transition"
               >
-                {previewUrl ? (
-                  <div className="relative w-32 h-32 mx-auto rounded-full overflow-hidden">
-                    <Image
-                      src={previewUrl}
-                      alt="Preview"
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <FiUpload className="mx-auto text-gray-400 text-3xl mb-2" />
-                    <p className="text-gray-500">Click to select an image</p>
-                  </>
-                )}
+                <FiUpload className="mx-auto text-gray-400 text-3xl mb-2" />
+                <p className="text-gray-500">Click to select an image</p>
               </div>
             </div>
             
@@ -733,22 +723,66 @@ export default function ProfilePage() {
               <button
                 onClick={() => {
                   setShowImageForm(false);
-                  setPreviewUrl(null);
-                  setSelectedFile(null);
                 }}
                 className="px-4 py-2 text-gray-700 hover:text-gray-900"
               >
                 Cancel
               </button>
-              
-              <button
-                onClick={uploadProfileImage}
-                disabled={!selectedFile || isUpdatingImage}
-                className="bg-gradient-to-r from-green-400 to-green-600 text-white py-2 px-4 rounded-lg hover:from-green-500 hover:to-green-700 transition disabled:opacity-50"
-              >
-                {isUpdatingImage ? "Uploading..." : "Upload Image"}
-              </button>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Add file info and update button outside the modal when a file is selected */}
+      {selectedFile && !showImageForm && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4 z-40 flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="mr-4 relative w-12 h-12 bg-gray-100 rounded-full overflow-hidden">
+              {previewUrl && (
+                <Image
+                  src={previewUrl}
+                  alt="Preview"
+                  fill
+                  className="object-cover"
+                />
+              )}
+            </div>
+            <div>
+              <div className="font-medium">Selected File:</div>
+              <div className="text-sm text-gray-600">
+                {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
+              </div>
+            </div>
+          </div>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => {
+                setSelectedFile(null);
+                if (previewUrl) {
+                  URL.revokeObjectURL(previewUrl);
+                  setPreviewUrl(null);
+                }
+              }}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
+              disabled={isUpdatingImage}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={uploadProfileImage}
+              disabled={isUpdatingImage}
+              className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition flex items-center justify-center"
+            >
+              {isUpdatingImage ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Uploading...
+                </>
+              ) : "Update Profile Picture"}
+            </button>
           </div>
         </div>
       )}
