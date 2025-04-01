@@ -4,6 +4,8 @@ import { prisma } from "@/app/lib/prisma";
 import { authOptions } from "@/app/lib/auth";
 import bcrypt from "bcryptjs";
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     // Verify user is authenticated

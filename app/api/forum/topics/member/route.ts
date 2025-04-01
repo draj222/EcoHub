@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
 // In-memory store for topic memberships in development
 let mockTopicMemberships: Record<string, Set<string>> = {
   "topic1": new Set(["user1"]),

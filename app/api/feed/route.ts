@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 import { formatTags } from "@/app/lib/utils";
 
+export const dynamic = 'force-dynamic';
+
 // Define types for API
 interface FollowingRecord {
   followingId: string;

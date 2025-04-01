@@ -3,6 +3,8 @@ import { prisma } from "@/app/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 
+export const dynamic = 'force-dynamic';
+
 // Define interface for mock post type
 interface MockPost {
   id: string;

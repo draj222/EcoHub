@@ -6,6 +6,11 @@ const nextConfig = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['localhost:3000', 'eco-hub-git-main-draj222s-projects.vercel.app', 'eco-hub.vercel.app'],
+    },
+  },
 }
 
 module.exports = nextConfig 

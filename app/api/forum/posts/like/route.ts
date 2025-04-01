@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
 // In-memory store for post likes in development
 let mockPostLikes: Record<string, Set<string>> = {
   "post1": new Set(["user2", "user3"]),

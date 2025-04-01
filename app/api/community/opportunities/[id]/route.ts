@@ -3,6 +3,8 @@ import { prisma } from "@/app/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 
+export const dynamic = 'force-dynamic';
+
 // Declare global type for devMockOpportunities to access the global store
 declare global {
   var devMockOpportunities: any[];
