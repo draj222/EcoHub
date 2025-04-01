@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { getServerSession } from "next-auth";
-import authOptions from "@/app/lib/auth";
+import { authOptions } from "@/app/lib/auth";
 import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
