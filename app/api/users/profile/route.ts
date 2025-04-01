@@ -4,6 +4,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 
 export const dynamic = 'force-dynamic';
+// Increase the maximum request body size to handle base64 images
+export const bodyParser = {
+  sizeLimit: '10mb'
+};
 
 export async function PATCH(request: NextRequest) {
   console.log("🔄 Profile update request received");
@@ -34,7 +38,7 @@ export async function PATCH(request: NextRequest) {
     
     // Get the request body
     const data = await request.json();
-    console.log("📝 Request data:", data);
+    console.log("📝 Request data received (not logging image data for privacy)");
     
     const { name, image } = data;
     
@@ -51,7 +55,7 @@ export async function PATCH(request: NextRequest) {
     const updateData: { name?: string; image?: string } = {};
     if (name) updateData.name = name;
     if (image) {
-      console.log(`🖼️ Updating profile image: ${image}`);
+      console.log(`🖼️ Image data received (length: ${image.length} characters)`);
       updateData.image = image;
     }
 

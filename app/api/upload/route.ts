@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 import { randomUUID } from "crypto";
@@ -48,75 +46,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get file extension based on mime type
-    const extensionMap = {
-      "image/jpeg": "jpg",
-      "image/png": "png",
-      "image/gif": "gif",
-      "image/webp": "webp"
-    };
-    const extension = extensionMap[file.type as keyof typeof extensionMap] || "jpg";
-    
-    // Create a unique filename
-    const uniqueId = randomUUID();
-    const filename = `${uniqueId}.${extension}`;
-    console.log(`📝 Generated filename: ${filename}`);
-    
-    // Ensure uploads directory exists
-    const publicDir = path.join(process.cwd(), "public");
-    const uploadsDir = path.join(publicDir, "uploads");
-    
+    // Size validation
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_SIZE) {
+      console.log(`❌ File too large: ${file.size} bytes (max: ${MAX_SIZE} bytes)`);
+      return NextResponse.json(
+        { error: "File too large. Maximum size is 5MB." },
+        { status: 400 }
+      );
+    }
+
     try {
-      // Create directories if they don't exist
-      if (!fs.existsSync(publicDir)) {
-        console.log("📂 Creating public directory");
-        fs.mkdirSync(publicDir);
-      }
-      
-      if (!fs.existsSync(uploadsDir)) {
-        console.log("📂 Creating uploads directory");
-        fs.mkdirSync(uploadsDir);
-      }
-      
-      // Set directory permissions
-      fs.chmodSync(uploadsDir, 0o777);
-      console.log(`📂 Upload directory permissions set: ${uploadsDir}`);
-      
-      // Convert file to buffer
-      console.log("📤 Converting file to buffer...");
+      // Convert file to Base64
+      console.log("📤 Converting file to Base64...");
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
+      const base64String = buffer.toString('base64');
       
-      // Full path for the file
-      const filePath = path.join(uploadsDir, filename);
+      // Create a data URL
+      const fileUrl = `data:${file.type};base64,${base64String}`;
+      console.log(`🔗 Base64 Data URL created (length: ${fileUrl.length} characters)`);
       
-      // Write file synchronously to avoid potential async issues
-      console.log(`💾 Writing file to: ${filePath}`);
-      fs.writeFileSync(filePath, buffer);
-      
-      // Verify file was written successfully
-      if (fs.existsSync(filePath)) {
-        console.log(`✅ File successfully written to disk (${fs.statSync(filePath).size} bytes)`);
-        
-        // Return the URL path for the file
-        const fileUrl = `/uploads/${filename}`;
-        console.log(`🔗 File URL: ${fileUrl}`);
-        
-        return NextResponse.json({
-          success: true,
-          fileUrl,
-          message: "File uploaded successfully"
-        });
-      } else {
-        throw new Error("File was not written to disk");
-      }
-    } catch (fsError) {
-      console.error("❌ Filesystem error:", fsError);
-      console.error("Stack trace:", fsError instanceof Error ? fsError.stack : "No stack trace");
+      // Return the data URL
+      return NextResponse.json({
+        success: true,
+        fileUrl,
+        message: "File converted successfully"
+      });
+    } catch (dataError) {
+      console.error("❌ Error converting file:", dataError);
+      console.error("Stack trace:", dataError instanceof Error ? dataError.stack : "No stack trace");
       
       return NextResponse.json({ 
-        error: "Error saving file to server",
-        details: fsError instanceof Error ? fsError.message : "Unknown filesystem error" 
+        error: "Error processing image",
+        details: dataError instanceof Error ? dataError.message : "Unknown conversion error" 
       }, { 
         status: 500 
       });

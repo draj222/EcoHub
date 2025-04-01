@@ -199,115 +199,75 @@ export default function ProfilePage() {
       const formData = new FormData();
       formData.append("file", selectedFile);
       
-      // Step 2: Attempt to upload the file with retries
+      // Step 2: Convert the file to base64 data URL
       let uploadResponse;
-      let result;
-      let attempts = 0;
-      const maxAttempts = 3;
-      
-      while (attempts < maxAttempts) {
-        attempts++;
-        console.log(`Upload attempt ${attempts}/${maxAttempts}`);
-        
-        try {
-          // Send the upload request
-          uploadResponse = await fetch("/api/upload", {
-            method: "POST",
-            body: formData
-          });
-          
-          result = await uploadResponse.json();
-          
-          if (uploadResponse.ok && result.fileUrl) {
-            console.log("Upload successful on attempt", attempts);
-            break; // Success, exit the retry loop
-          } else {
-            console.error("Upload failed, response:", result);
-            // If this was the last attempt, throw error to be caught in outer catch
-            if (attempts === maxAttempts) {
-              throw new Error(result.error || result.details || "Failed to upload image");
-            }
-            // Otherwise wait before retrying
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        } catch (fetchError) {
-          console.error(`Upload attempt ${attempts} fetch error:`, fetchError);
-          if (attempts === maxAttempts) {
-            throw fetchError;
-          }
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-      
-      if (!result?.fileUrl) {
-        throw new Error("No file URL returned from server");
-      }
-      
-      console.log("File uploaded successfully:", result.fileUrl);
-      
-      // Step 3: Update the user's profile with the new image URL
       try {
-        const profileUpdateResponse = await fetch("/api/users/profile", {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ 
-            image: result.fileUrl 
-          }),
+        uploadResponse = await fetch("/api/upload", {
+          method: "POST",
+          body: formData
         });
         
-        const profileResult = await profileUpdateResponse.json();
+        const result = await uploadResponse.json();
         
-        if (!profileUpdateResponse.ok) {
-          throw new Error(profileResult.error || "Failed to update profile");
+        if (!uploadResponse.ok || !result.fileUrl) {
+          throw new Error(result.error || result.details || "Failed to process image");
         }
         
-        console.log("Profile updated successfully");
+        console.log("File conversion successful");
         
-        // Step 4: Update the session 
-        if (update) {
-          await update({ 
-            ...session, 
-            user: { 
-              ...session?.user, 
+        // Step 3: Update the user's profile with the base64 image
+        try {
+          const profileUpdateResponse = await fetch("/api/users/profile", {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ 
               image: result.fileUrl 
-            } 
+            }),
           });
-          console.log("Session updated successfully");
+          
+          const profileResult = await profileUpdateResponse.json();
+          
+          if (!profileUpdateResponse.ok) {
+            throw new Error(profileResult.error || "Failed to update profile");
+          }
+          
+          console.log("Profile updated successfully");
+          
+          // Step 4: Update the session
+          if (update) {
+            await update({ 
+              ...session, 
+              user: { 
+                ...session?.user, 
+                image: result.fileUrl 
+              } 
+            });
+            console.log("Session updated successfully");
+          }
+          
+          // Step 5: Clean up and show success
+          setSelectedFile(null);
+          if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            setPreviewUrl(null);
+          }
+          
+          // Show success by reloading the page
+          window.location.reload();
+          
+        } catch (profileError) {
+          console.error("Error updating profile:", profileError);
+          throw new Error("Your profile image couldn't be updated. Please try again.");
         }
-        
-        // Step 5: Reset state and refresh
-        setSelectedFile(null);
-        if (previewUrl) {
-          URL.revokeObjectURL(previewUrl);
-          setPreviewUrl(null);
-        }
-        
-        // Show success message
-        setError("");
-        
-        // Refresh without full page reload
-        window.location.reload();
-        
-      } catch (profileError) {
-        console.error("Error updating profile:", profileError);
-        throw new Error("Profile was not updated. Please try again.");
+      } catch (convertError) {
+        console.error("Error converting image:", convertError);
+        throw new Error("Your image couldn't be processed. Please try a different image.");
       }
     } catch (err) {
       console.error("Error in upload process:", err);
-      let errorMessage = "Failed to upload image";
-      
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      
-      // Make the error message more user-friendly
-      if (errorMessage.includes("saving file")) {
-        errorMessage = "Unable to save your image. Please try a different image or try again later.";
-      }
-      
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : "Failed to update profile picture");
     } finally {
       setIsUpdatingImage(false);
     }
