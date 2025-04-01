@@ -5,7 +5,7 @@ import { prisma } from "@/app/lib/prisma";
 
 interface MockUser {
   id: string;
-  name: string;
+  name: string | null;
   image: string | null;
 }
 
@@ -83,26 +83,26 @@ export async function GET(request: NextRequest) {
             mockUser = {
               id: "user2",
               name: "Jane Smith",
-              image: "https://api.dicebear.com/6.x/micah/svg?seed=jane"
+              image: null
             };
           } else if (otherUserId === "user3") {
             mockUser = {
               id: "user3",
               name: "Michael Johnson",
-              image: "https://api.dicebear.com/6.x/micah/svg?seed=michael"
+              image: null
             };
           } else if (otherUserId === "user4") {
             mockUser = {
               id: "user4",
               name: "Emily Davis",
-              image: "https://api.dicebear.com/6.x/micah/svg?seed=emily"
+              image: null
             };
           }
           
           conversationsMap.set(otherUserId, {
             id: otherUserId,
             name: mockUser.name,
-            image: mockUser.image,
+            image: null,
             lastMessage: "",
             lastMessageTime: new Date(0).toISOString(),
             unreadCount: 0
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
           {
             id: "user2", 
             name: "Jane Smith",
-            image: "https://api.dicebear.com/6.x/micah/svg?seed=jane",
+            image: null,
             lastMessage: "Hey, how's your eco-project going?",
             lastMessageTime: new Date(Date.now() - 3600000).toISOString(),
             unreadCount: 2
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
           {
             id: "user3",
             name: "Michael Johnson",
-            image: "https://api.dicebear.com/6.x/micah/svg?seed=michael",
+            image: null,
             lastMessage: "Thanks for sharing that research paper!",
             lastMessageTime: new Date(Date.now() - 86400000).toISOString(),
             unreadCount: 0
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
           {
             id: "user4",
             name: "Emily Davis",
-            image: "https://api.dicebear.com/6.x/micah/svg?seed=emily",
+            image: null,
             lastMessage: "I'd like to collaborate on your renewable energy project.",
             lastMessageTime: new Date(Date.now() - 172800000).toISOString(),
             unreadCount: 0
