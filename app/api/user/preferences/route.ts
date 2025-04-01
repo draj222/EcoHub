@@ -38,7 +38,10 @@ export async function GET(request: NextRequest) {
     // Find user preferences in the database
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { preferences: true }
+      select: { 
+        id: true,
+        preferences: true 
+      }
     });
     
     if (!user || !user.preferences) {
