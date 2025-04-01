@@ -125,7 +125,7 @@ export default function Header() {
               <div className="flex space-x-4">
                 <Link
                   href="/signin"
-                  className="text-green-600 hover:text-green-800 font-medium"
+                  className="bg-white border border-green-600 text-green-600 px-4 py-2 rounded-md hover:bg-green-50 transition"
                 >
                   Sign in
                 </Link>
