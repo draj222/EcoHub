@@ -22,7 +22,7 @@ declare module "next-auth/jwt" {
   }
 }
 
-export const authOptions: NextAuthOptions = {
+const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
@@ -91,4 +91,6 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-}; 
+};
+
+export default authOptions; 
