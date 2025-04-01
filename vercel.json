@@ -1,0 +1,6 @@
+{
+  "buildCommand": "PRISMA_SKIP_DATABASE_BASELINE_CHECK=true prisma generate && prisma migrate deploy --skip-generate && next build",
+  "env": {
+    "PRISMA_SKIP_DATABASE_BASELINE_CHECK": "true"
+  }
+} 
