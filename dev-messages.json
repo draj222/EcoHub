@@ -1,0 +1,49 @@
+[
+  {
+    "id": "msg1743478830153",
+    "content": "Good, thanks!",
+    "createdAt": "2025-04-01T03:40:30.153Z",
+    "updatedAt": "2025-04-01T03:40:30.153Z",
+    "isRead": false,
+    "senderId": "cm8xjk8030000vkhovrn22xfx",
+    "receiverId": "user2",
+    "sender": {
+      "id": "cm8xjk8030000vkhovrn22xfx",
+      "name": "Dheeraj Tallapragada",
+      "image": "/uploads/de2bd07a-0edd-4b2d-b70a-cd588e203992.JPEG"
+    }
+  },
+  {
+    "id": "msg1743483043629",
+    "content": "Check out this project: \"Testing testing\" - /projects/cm8xzpskm0001bt6w9v7ahac5",
+    "createdAt": "2025-04-01T04:50:43.629Z",
+    "updatedAt": "2025-04-01T04:50:43.629Z",
+    "isRead": false,
+    "senderId": "cm8xjk8030000vkhovrn22xfx",
+    "receiverId": "user2",
+    "sender": {
+      "id": "cm8xjk8030000vkhovrn22xfx",
+      "name": "Dheeraj Tallapragada",
+      "image": "/uploads/de2bd07a-0edd-4b2d-b70a-cd588e203992.JPEG"
+    }
+  },
+  {
+    "id": "msg1743483487642",
+    "content": "Check out this project:",
+    "createdAt": "2025-04-01T04:58:07.642Z",
+    "updatedAt": "2025-04-01T04:58:07.642Z",
+    "isRead": false,
+    "senderId": "cm8xjk8030000vkhovrn22xfx",
+    "receiverId": "user3",
+    "metadata": {
+      "type": "project_share",
+      "projectId": "cm8xixi8l0006ceecuxhug37v",
+      "projectTitle": "Microplastics in Freshwater Systems: A Comprehensive Study"
+    },
+    "sender": {
+      "id": "cm8xjk8030000vkhovrn22xfx",
+      "name": "Dheeraj Tallapragada",
+      "image": "/uploads/de2bd07a-0edd-4b2d-b70a-cd588e203992.JPEG"
+    }
+  }
+]
