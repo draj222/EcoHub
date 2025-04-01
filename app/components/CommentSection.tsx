@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { format } from 'date-fns'
 import { Comment } from '@/app/types'
@@ -168,21 +169,27 @@ export default function CommentSection({ projectId }: CommentSectionProps) {
             <div key={comment.id} className="flex space-x-4">
               <div className="flex-shrink-0 relative w-10 h-10 rounded-full overflow-hidden">
                 {comment.user.image ? (
-                  <Image
-                    src={comment.user.image}
-                    alt={comment.user.name || 'User'}
-                    width={40}
-                    height={40}
-                    className="rounded-full object-cover"
-                    style={{ aspectRatio: "1/1" }}
-                  />
+                  <Link href={`/profile/${comment.user.id}`}>
+                    <Image
+                      src={comment.user.image}
+                      alt={comment.user.name || 'User'}
+                      width={40}
+                      height={40}
+                      className="rounded-full object-cover cursor-pointer hover:opacity-80 transition"
+                      style={{ aspectRatio: "1/1" }}
+                    />
+                  </Link>
                 ) : (
-                  <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                  <Link href={`/profile/${comment.user.id}`}>
+                    <div className="w-10 h-10 bg-gray-200 rounded-full cursor-pointer hover:opacity-80 transition"></div>
+                  </Link>
                 )}
               </div>
               <div className="flex-grow">
                 <div className="flex items-center justify-between mb-1">
-                  <h4 className="font-medium">{comment.user.name}</h4>
+                  <Link href={`/profile/${comment.user.id}`} className="hover:text-green-600 transition">
+                    <h4 className="font-medium">{comment.user.name}</h4>
+                  </Link>
                   <span className="text-xs text-gray-500">
                     {format(new Date(comment.createdAt), 'MMM d, yyyy')}
                   </span>
