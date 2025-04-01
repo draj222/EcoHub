@@ -193,55 +193,84 @@ export default function ProfilePage() {
     setError("");
     
     try {
-      // Create a simple FormData object
+      // Step 1: Create a new FormData instance
       const formData = new FormData();
       formData.append("file", selectedFile);
       
-      // Simple direct upload
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData
-      });
+      console.log("Starting upload for file:", selectedFile.name);
       
-      // Parse the JSON response
-      const result = await response.json();
-      
-      // Check for errors
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to upload image");
+      // Step 2: Upload the file
+      let uploadResponse;
+      try {
+        uploadResponse = await fetch("/api/upload", {
+          method: "POST",
+          body: formData
+        });
+        
+        const result = await uploadResponse.json();
+        
+        if (!uploadResponse.ok) {
+          throw new Error(result.error || "Failed to upload image to server");
+        }
+        
+        if (!result.fileUrl) {
+          throw new Error("No file URL returned from server");
+        }
+        
+        console.log("File uploaded successfully:", result.fileUrl);
+        
+        // Step 3: Update the user's profile with the new image URL
+        const profileUpdateResponse = await fetch("/api/users/profile", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ 
+            image: result.fileUrl 
+          }),
+        });
+        
+        const profileResult = await profileUpdateResponse.json();
+        
+        if (!profileUpdateResponse.ok) {
+          throw new Error(profileResult.error || "Failed to update profile");
+        }
+        
+        console.log("Profile updated successfully");
+        
+        // Step 4: Update the session 
+        if (update) {
+          await update({ 
+            ...session, 
+            user: { 
+              ...session?.user, 
+              image: result.fileUrl 
+            } 
+          });
+          console.log("Session updated successfully");
+        }
+        
+        // Step 5: Reset state and refresh
+        setSelectedFile(null);
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+          setPreviewUrl(null);
+        }
+        
+        // Refresh without full page reload
+        router.refresh();
+        
+      } catch (err) {
+        console.error("Error in upload process:", err);
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("An unknown error occurred during upload");
+        }
       }
-      
-      if (!result.fileUrl) {
-        throw new Error("No file URL returned from server");
-      }
-      
-      // Update the user profile with the new image URL
-      const profileResponse = await fetch("/api/users/profile", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ image: result.fileUrl }),
-      });
-      
-      if (!profileResponse.ok) {
-        const profileData = await profileResponse.json();
-        throw new Error(profileData.error || "Failed to update profile");
-      }
-      
-      // Update the session
-      await update({ image: result.fileUrl });
-      
-      // Clear state
-      setSelectedFile(null);
-      setPreviewUrl(null);
-      
-      // Refresh the page to show the updated image
-      window.location.reload();
-      
     } catch (err) {
-      console.error("Upload error:", err);
-      setError(err instanceof Error ? err.message : "Unknown error occurred");
+      console.error("Error in upload handler:", err);
+      setError("Failed to process file for upload");
     } finally {
       setIsUpdatingImage(false);
     }
