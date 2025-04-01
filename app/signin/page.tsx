@@ -1,30 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/app/components/Header'
+import SignInMessage from '@/app/components/SignInMessage'
 import { FaEnvelope, FaLock } from 'react-icons/fa'
 
 export default function SignIn() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [successMessage, setSuccessMessage] = useState('')
-
-  useEffect(() => {
-    // Show success message if redirected from signup
-    const registered = searchParams.get('registered')
-    if (registered === 'true') {
-      setSuccessMessage('Account created successfully! Please sign in.')
-    }
-  }, [searchParams])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -79,11 +70,9 @@ export default function SignIn() {
               <p className="text-gray-600">Sign in to continue to EcoHub</p>
             </div>
 
-            {successMessage && (
-              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                {successMessage}
-              </div>
-            )}
+            <Suspense fallback={<div>Loading...</div>}>
+              <SignInMessage />
+            </Suspense>
 
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
