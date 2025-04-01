@@ -65,10 +65,6 @@ export default function ProfilePage() {
   const [isLikedLoading, setIsLikedLoading] = useState(true);
   const [error, setError] = useState("");
   const [isUpdatingImage, setIsUpdatingImage] = useState(false);
-  const [showImageForm, setShowImageForm] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     // Redirect unauthenticated users
@@ -82,15 +78,6 @@ export default function ProfilePage() {
       fetchLikedPosts();
     }
   }, [status, session, router]);
-
-  // Clean up preview URL when component unmounts
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
 
   const fetchUserProjects = async () => {
     setIsLoading(true);
@@ -152,122 +139,55 @@ export default function ProfilePage() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      
-      // Basic validation
-      const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-      if (!validTypes.includes(file.type)) {
-        setError(`Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.`);
-        return;
-      }
-      
-      // Size validation (5MB max)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (file.size > maxSize) {
-        setError(`File too large. Maximum size is 5MB.`);
-        return;
-      }
-      
-      console.log("File selected:", file.name, file.type, file.size);
-      setSelectedFile(file);
-      setError("");
-      
-      // Create a preview URL for the image
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-      const fileUrl = URL.createObjectURL(file);
-      setPreviewUrl(fileUrl);
-      
-      // Close the modal after selecting a file
-      setShowImageForm(false);
-    }
-  };
-
   const uploadProfileImage = async () => {
-    if (!selectedFile) return;
-    
     setIsUpdatingImage(true);
     setError("");
     
     try {
-      console.log("Starting upload for file:", selectedFile.name);
+      // Get a placeholder profile image instead of trying to upload
+      const response = await fetch("/api/upload", {
+        method: "POST"
+      });
       
-      // Step 1: Create FormData with the file
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      
-      // Step 2: Convert the file to base64 data URL
-      let uploadResponse;
-      try {
-        uploadResponse = await fetch("/api/upload", {
-          method: "POST",
-          body: formData
-        });
-        
-        const result = await uploadResponse.json();
-        
-        if (!uploadResponse.ok || !result.fileUrl) {
-          throw new Error(result.error || result.details || "Failed to process image");
-        }
-        
-        console.log("File conversion successful");
-        
-        // Step 3: Update the user's profile with the base64 image
-        try {
-          const profileUpdateResponse = await fetch("/api/users/profile", {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ 
-              image: result.fileUrl 
-            }),
-          });
-          
-          const profileResult = await profileUpdateResponse.json();
-          
-          if (!profileUpdateResponse.ok) {
-            throw new Error(profileResult.error || "Failed to update profile");
-          }
-          
-          console.log("Profile updated successfully");
-          
-          // Step 4: Update the session
-          if (update) {
-            await update({ 
-              ...session, 
-              user: { 
-                ...session?.user, 
-                image: result.fileUrl 
-              } 
-            });
-            console.log("Session updated successfully");
-          }
-          
-          // Step 5: Clean up and show success
-          setSelectedFile(null);
-          if (previewUrl) {
-            URL.revokeObjectURL(previewUrl);
-            setPreviewUrl(null);
-          }
-          
-          // Show success by reloading the page
-          window.location.reload();
-          
-        } catch (profileError) {
-          console.error("Error updating profile:", profileError);
-          throw new Error("Your profile image couldn't be updated. Please try again.");
-        }
-      } catch (convertError) {
-        console.error("Error converting image:", convertError);
-        throw new Error("Your image couldn't be processed. Please try a different image.");
+      if (!response.ok) {
+        throw new Error("Failed to get profile image URL");
       }
+      
+      const result = await response.json();
+      
+      if (!result.fileUrl) {
+        throw new Error("No image URL returned");
+      }
+      
+      // Update the user profile with the image URL
+      const profileResponse = await fetch("/api/users/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          image: result.fileUrl 
+        }),
+      });
+      
+      if (!profileResponse.ok) {
+        throw new Error("Failed to update profile");
+      }
+      
+      // Update the session
+      await update({
+        ...session,
+        user: {
+          ...session?.user,
+          image: result.fileUrl
+        }
+      });
+      
+      // Reload the page to show updated image
+      window.location.reload();
     } catch (err) {
-      console.error("Error in upload process:", err);
-      setError(err instanceof Error ? err.message : "Failed to update profile picture");
+      console.error("Error updating profile picture:", err);
+      setError("Failed to update profile picture. Please try again.");
     } finally {
       setIsUpdatingImage(false);
     }
@@ -294,15 +214,7 @@ export default function ProfilePage() {
             <div className="p-8">
               <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
                 <div className="relative w-24 h-24 bg-green-100 rounded-full overflow-hidden flex items-center justify-center group">
-                  {previewUrl ? (
-                    <Image
-                      src={previewUrl}
-                      alt="Preview"
-                      fill
-                      className="object-cover"
-                      style={{ aspectRatio: "1/1" }}
-                    />
-                  ) : session?.user?.image ? (
+                  {session?.user?.image ? (
                     <Image
                       src={session.user.image}
                       alt={session.user.name || "User"}
@@ -315,7 +227,7 @@ export default function ProfilePage() {
                   )}
                   
                   <button 
-                    onClick={() => setShowImageForm(!showImageForm)}
+                    onClick={uploadProfileImage}
                     className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <FiCamera className="text-white text-xl" />
@@ -332,74 +244,34 @@ export default function ProfilePage() {
                     <span>Joined {new Date().toLocaleDateString()}</span>
                   </div>
                   
-                  {showImageForm && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="space-y-3">
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileChange}
-                          accept="image/jpeg, image/png, image/gif, image/webp"
-                          className="hidden"
-                        />
-                        <div className="flex flex-col gap-2">
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition flex items-center justify-center"
-                            disabled={isUpdatingImage}
-                          >
-                            <FiUpload className="mr-2" />
-                            Select Image
-                          </button>
-                          {selectedFile && (
-                            <div className="text-sm text-gray-600">
-                              {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
-                            </div>
-                          )}
-                        </div>
-                        {error && (
-                          <div className="text-red-500 text-sm p-2 bg-red-50 rounded">
-                            {error}
-                          </div>
-                        )}
-                        <div className="flex space-x-2">
-                          <button
-                            type="button"
-                            onClick={uploadProfileImage}
-                            disabled={isUpdatingImage || !selectedFile}
-                            className={`px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition flex items-center justify-center ${!selectedFile || isUpdatingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            {isUpdatingImage ? (
-                              <>
-                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Uploading...
-                              </>
-                            ) : "Update"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowImageForm(false);
-                              setSelectedFile(null);
-                              setError("");
-                              if (previewUrl) {
-                                URL.revokeObjectURL(previewUrl);
-                                setPreviewUrl(null);
-                              }
-                            }}
-                            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition"
-                            disabled={isUpdatingImage}
-                          >
-                            Cancel
-                          </button>
-                        </div>
+                  <div className="mt-4">
+                    <button
+                      onClick={uploadProfileImage}
+                      disabled={isUpdatingImage}
+                      className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition flex items-center justify-center mx-auto md:mx-0"
+                    >
+                      {isUpdatingImage ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Updating...
+                        </>
+                      ) : (
+                        <>
+                          <FiCamera className="mr-2" /> 
+                          Update Profile Picture
+                        </>
+                      )}
+                    </button>
+                    
+                    {error && (
+                      <div className="text-red-500 text-sm mt-2 p-2 bg-red-50 rounded">
+                        {error}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -712,108 +584,6 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
-      
-      {/* Image upload form */}
-      {showImageForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Update Profile Picture</h3>
-            <div className="mb-4">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/jpeg, image/png, image/gif, image/webp"
-                className="hidden"
-              />
-              
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-green-500 transition"
-              >
-                <FiUpload className="mx-auto text-gray-400 text-3xl mb-2" />
-                <p className="text-gray-500">Click to select an image</p>
-                <p className="text-xs text-gray-400 mt-2">Supported formats: JPEG, PNG, GIF, WebP</p>
-                <p className="text-xs text-gray-400">Max size: 5MB</p>
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowImageForm(false);
-                }}
-                className="px-4 py-2 text-gray-700 hover:text-gray-900"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Add file info and update button outside the modal when a file is selected */}
-      {selectedFile && !showImageForm && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4 z-40 flex flex-col md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center">
-            <div className="mr-4 relative w-12 h-12 bg-gray-100 rounded-full overflow-hidden">
-              {previewUrl && (
-                <Image
-                  src={previewUrl}
-                  alt="Preview"
-                  fill
-                  className="object-cover"
-                />
-              )}
-            </div>
-            <div>
-              <div className="font-medium">Selected File:</div>
-              <div className="text-sm text-gray-600">
-                {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
-              </div>
-            </div>
-          </div>
-          
-          {/* Show error message if present */}
-          {error && (
-            <div className="text-red-500 text-sm mt-2 md:mt-0 md:mx-4 md:flex-grow p-2 bg-red-50 rounded">
-              {error}
-            </div>
-          )}
-          
-          <div className="flex space-x-3 mt-2 md:mt-0">
-            <button
-              onClick={() => {
-                setSelectedFile(null);
-                setError("");
-                if (previewUrl) {
-                  URL.revokeObjectURL(previewUrl);
-                  setPreviewUrl(null);
-                }
-              }}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
-              disabled={isUpdatingImage}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={uploadProfileImage}
-              disabled={isUpdatingImage}
-              className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition flex items-center justify-center"
-            >
-              {isUpdatingImage ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Uploading...
-                </>
-              ) : "Update Profile Picture"}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 
