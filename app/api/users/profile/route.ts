@@ -4,10 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 
 export const dynamic = 'force-dynamic';
-// Increase the maximum request body size to handle base64 images
-export const bodyParser = {
-  sizeLimit: '10mb'
-};
 
 export async function PATCH(request: NextRequest) {
   console.log("🔄 Profile update request received");
@@ -55,6 +51,15 @@ export async function PATCH(request: NextRequest) {
     const updateData: { name?: string; image?: string } = {};
     if (name) updateData.name = name;
     if (image) {
+      // Make sure image data isn't too large (10MB limit)
+      if (image.length > 10 * 1024 * 1024) {
+        console.log("❌ Image data too large");
+        return NextResponse.json(
+          { error: "Image data exceeds 10MB limit" },
+          { status: 400 }
+        );
+      }
+      
       console.log(`🖼️ Image data received (length: ${image.length} characters)`);
       updateData.image = image;
     }

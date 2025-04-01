@@ -4,7 +4,7 @@ import { authOptions } from "@/app/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
-// Very simple external URL approach
+// Very simple placeholder image approach
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
@@ -17,7 +17,6 @@ export async function POST(request: NextRequest) {
     const placeholderImages = [
       "https://ui-avatars.com/api/?name=" + encodeURIComponent(session.user.name || "User"),
       "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y",
-      "https://source.unsplash.com/100x100/?person",
       "https://randomuser.me/api/portraits/lego/1.jpg",
       "https://i.pravatar.cc/150?img=" + Math.floor(Math.random() * 70),
     ];

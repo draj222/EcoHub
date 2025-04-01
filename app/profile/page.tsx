@@ -144,7 +144,7 @@ export default function ProfilePage() {
     setError("");
     
     try {
-      // Get a placeholder profile image instead of trying to upload
+      // Get a placeholder profile image
       const response = await fetch("/api/upload", {
         method: "POST"
       });
