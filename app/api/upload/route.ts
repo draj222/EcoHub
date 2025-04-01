@@ -58,8 +58,19 @@ export async function POST(request: NextRequest) {
       // Create a unique filename
       const buffer = await file.arrayBuffer();
       const uniqueId = randomUUID();
-      const extension = file.name.split(".").pop() || "jpg";
-      const filename = `${uniqueId}.${extension}`;
+      
+      // Get proper file extension with fallback
+      let extension = "jpg";
+      if (file.name) {
+        const parts = file.name.split(".");
+        if (parts.length > 1) {
+          extension = parts[parts.length - 1];
+        }
+      }
+      
+      // Ensure extension is valid
+      const safeExtension = extension.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const filename = `${uniqueId}.${safeExtension}`;
       
       // Ensure the uploads directory exists
       const uploadDir = join(process.cwd(), "public", "uploads");
@@ -68,21 +79,29 @@ export async function POST(request: NextRequest) {
       
       // Write the file
       const filepath = join(uploadDir, filename);
-      await writeFile(filepath, Buffer.from(buffer));
-      console.log(`File written to: ${filepath}`);
-      
-      // Return the file URL
-      const fileUrl = `/uploads/${filename}`;
-      console.log(`File URL: ${fileUrl}`);
-      
-      return NextResponse.json({ 
-        success: true, 
-        fileUrl 
-      });
+      try {
+        await writeFile(filepath, Buffer.from(buffer));
+        console.log(`File successfully written to: ${filepath}`);
+        
+        // Return the file URL
+        const fileUrl = `/uploads/${filename}`;
+        console.log(`File URL: ${fileUrl}`);
+        
+        return NextResponse.json({ 
+          success: true, 
+          fileUrl 
+        });
+      } catch (writeError) {
+        console.error("Error writing file:", writeError);
+        return NextResponse.json(
+          { error: "Unable to save uploaded file. Please try again." },
+          { status: 500 }
+        );
+      }
     } catch (fileError: unknown) {
       console.error("File processing error:", fileError);
       return NextResponse.json(
-        { error: `Error processing file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}` },
+        { error: "Error processing file. Please try a different image." },
         { status: 500 }
       );
     }

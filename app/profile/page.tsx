@@ -245,14 +245,26 @@ export default function ProfilePage() {
       
     } catch (err) {
       console.error("Error updating profile image:", err);
-      setError(err instanceof Error ? err.message : "Failed to update profile image");
+      
+      // Create more user-friendly error messages
+      let userMessage = "Failed to update profile image. Please try again.";
+      
+      if (err instanceof Error) {
+        // Handle specific error cases
+        if (err.message.includes("processing file")) {
+          userMessage = "There was a problem with your image file. Please try a different image.";
+        } else if (err.message.includes("file type")) {
+          userMessage = "Please upload a valid image file (JPEG, PNG, GIF, or WebP).";
+        } else if (err.message.toLowerCase().includes("network") || err.message.toLowerCase().includes("failed to fetch")) {
+          userMessage = "Network error. Please check your connection and try again.";
+        }
+      }
+      
+      setError(userMessage);
+      
+      // Don't clear the selected file, so user can retry
     } finally {
       setIsUpdatingImage(false);
-      // Clean up the preview URL
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
-      }
     }
   };
 
@@ -735,7 +747,7 @@ export default function ProfilePage() {
       
       {/* Add file info and update button outside the modal when a file is selected */}
       {selectedFile && !showImageForm && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4 z-40 flex items-center justify-between">
+        <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4 z-40 flex flex-col md:flex-row md:items-center md:justify-between">
           <div className="flex items-center">
             <div className="mr-4 relative w-12 h-12 bg-gray-100 rounded-full overflow-hidden">
               {previewUrl && (
@@ -754,10 +766,19 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-          <div className="flex space-x-3">
+          
+          {/* Show error message if present */}
+          {error && (
+            <div className="text-red-500 text-sm mt-2 md:mt-0 md:mx-4 md:flex-grow p-2 bg-red-50 rounded">
+              {error}
+            </div>
+          )}
+          
+          <div className="flex space-x-3 mt-2 md:mt-0">
             <button
               onClick={() => {
                 setSelectedFile(null);
+                setError("");
                 if (previewUrl) {
                   URL.revokeObjectURL(previewUrl);
                   setPreviewUrl(null);
