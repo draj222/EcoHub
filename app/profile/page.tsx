@@ -155,9 +155,29 @@ export default function ProfilePage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      // Basic validation
+      const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+      if (!validTypes.includes(file.type)) {
+        setError(`Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.`);
+        return;
+      }
+      
+      // Size validation (5MB max)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        setError(`File too large. Maximum size is 5MB.`);
+        return;
+      }
+      
+      console.log("File selected:", file.name, file.type, file.size);
       setSelectedFile(file);
+      setError("");
       
       // Create a preview URL for the image
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
       const fileUrl = URL.createObjectURL(file);
       setPreviewUrl(fileUrl);
     }
@@ -167,11 +187,14 @@ export default function ProfilePage() {
     if (!selectedFile) return;
     
     setIsUpdatingImage(true);
+    setError("");
     
     try {
       // Create a FormData object to send the file
       const formData = new FormData();
       formData.append("file", selectedFile);
+      
+      console.log("Uploading file:", selectedFile.name, selectedFile.type, selectedFile.size);
       
       // Upload the file
       const uploadResponse = await fetch("/api/upload", {
@@ -180,34 +203,46 @@ export default function ProfilePage() {
       });
       
       if (!uploadResponse.ok) {
-        const data = await uploadResponse.json();
-        throw new Error(data.error || "Failed to upload image");
+        const errorData = await uploadResponse.json();
+        console.error("Upload response error:", errorData);
+        throw new Error(errorData.error || "Failed to upload image");
       }
       
-      const { fileUrl } = await uploadResponse.json();
+      const uploadData = await uploadResponse.json();
+      console.log("Upload response:", uploadData);
+      
+      if (!uploadData.fileUrl) {
+        throw new Error("No file URL returned from upload");
+      }
       
       // Update the user's profile with the new image URL
-      const updateResponse = await fetch(`/api/users/profile`, {
+      const updateResponse = await fetch("/api/users/profile", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ image: fileUrl }),
+        body: JSON.stringify({ image: uploadData.fileUrl }),
       });
 
       if (!updateResponse.ok) {
-        throw new Error("Failed to update profile image");
+        const errorData = await updateResponse.json();
+        console.error("Profile update error:", errorData);
+        throw new Error(errorData.error || "Failed to update profile image");
       }
 
+      const userData = await updateResponse.json();
+      console.log("Profile updated:", userData);
+
       // Update the session with the new image
-      await update({ image: fileUrl });
+      await update({ image: uploadData.fileUrl });
       
-      // Hide the form
+      // Reset state
+      setSelectedFile(null);
       setShowImageForm(false);
       
     } catch (err) {
       console.error("Error updating profile image:", err);
-      setError("Failed to update profile image");
+      setError(err instanceof Error ? err.message : "Failed to update profile image");
     } finally {
       setIsUpdatingImage(false);
       // Clean up the preview URL
@@ -292,6 +327,7 @@ export default function ProfilePage() {
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition flex items-center justify-center"
+                            disabled={isUpdatingImage}
                           >
                             <FiUpload className="mr-2" />
                             Select Image
@@ -302,26 +338,41 @@ export default function ProfilePage() {
                             </div>
                           )}
                         </div>
+                        {error && (
+                          <div className="text-red-500 text-sm p-2 bg-red-50 rounded">
+                            {error}
+                          </div>
+                        )}
                         <div className="flex space-x-2">
                           <button
                             type="button"
                             onClick={uploadProfileImage}
                             disabled={isUpdatingImage || !selectedFile}
-                            className={`px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition ${!selectedFile ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition flex items-center justify-center ${!selectedFile || isUpdatingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
-                            {isUpdatingImage ? "Updating..." : "Update"}
+                            {isUpdatingImage ? (
+                              <>
+                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Uploading...
+                              </>
+                            ) : "Update"}
                           </button>
                           <button
                             type="button"
                             onClick={() => {
                               setShowImageForm(false);
                               setSelectedFile(null);
+                              setError("");
                               if (previewUrl) {
                                 URL.revokeObjectURL(previewUrl);
                                 setPreviewUrl(null);
                               }
                             }}
                             className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition"
+                            disabled={isUpdatingImage}
                           >
                             Cancel
                           </button>
