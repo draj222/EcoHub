@@ -33,29 +33,47 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          return null;
+          console.log("❌ Missing credentials");
+          throw new Error("Please enter both email and password");
         }
 
         try {
+          console.log("🔍 Looking up user:", credentials.email);
           const user = await prisma.user.findUnique({
             where: {
               email: credentials.email,
             },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              password: true,
+              image: true,
+            },
           });
 
-          if (!user || !user.password) {
-            return null;
+          if (!user) {
+            console.log("❌ User not found:", credentials.email);
+            throw new Error("Invalid email or password");
           }
 
+          if (!user.password) {
+            console.log("❌ User has no password set:", credentials.email);
+            throw new Error("Invalid email or password");
+          }
+
+          console.log("🔐 Verifying password...");
           const isPasswordValid = await bcrypt.compare(
             credentials.password,
             user.password
           );
 
           if (!isPasswordValid) {
-            return null;
+            console.log("❌ Invalid password for user:", credentials.email);
+            throw new Error("Invalid email or password");
           }
 
+          console.log("✅ Authentication successful for user:", credentials.email);
           return {
             id: user.id,
             name: user.name,
@@ -63,8 +81,8 @@ export const authOptions: NextAuthOptions = {
             image: user.image,
           };
         } catch (error) {
-          console.error("Error during authentication:", error);
-          return null;
+          console.error("❌ Error during authentication:", error);
+          throw error;
         }
       },
     }),
@@ -91,4 +109,5 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
+  debug: process.env.NODE_ENV === "development",
 }; 
