@@ -207,8 +207,8 @@ export default function ProfilePage() {
       });
       
       console.log("Upload process completed successfully!");
-      // Reload the page to show updated image
-      router.refresh();
+      // Force a full page reload to update all components with the new image
+      window.location.href = '/profile';
     } catch (err) {
       console.error("Error updating profile picture:", err);
       setError(`Failed to update profile picture: ${err instanceof Error ? err.message : 'Please try again.'}`);
@@ -265,6 +265,7 @@ export default function ProfilePage() {
                       fill
                       className="object-cover"
                       style={{ aspectRatio: "1/1" }}
+                      unoptimized={session.user.image.startsWith('data:image')}
                     />
                   ) : (
                     <FiUser className="text-green-500 text-4xl" />

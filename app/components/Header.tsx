@@ -28,11 +28,11 @@ export default function Header() {
 
   // Determine if the user has a valid profile image
   const hasUserImage = session?.user?.image && 
-    !session.user.image.includes('api.dicebear.com') && 
     session.user.image.trim() !== '';
 
   // Get the image source with type safety
   const userImageSrc = hasUserImage && session?.user?.image ? session.user.image : '';
+  const isBase64Image = userImageSrc.startsWith('data:image');
   
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm">
@@ -71,6 +71,7 @@ export default function Header() {
                         className="object-cover"
                         style={{ aspectRatio: "1/1" }}
                         priority
+                        unoptimized={isBase64Image}
                       />
                     ) : (
                       <div className="bg-green-100 w-full h-full flex items-center justify-center">
