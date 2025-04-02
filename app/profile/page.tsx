@@ -8,6 +8,7 @@ import { FiUser, FiCalendar, FiEdit, FiTrash2, FiCamera, FiUpload, FiHeart, FiMe
 import Link from "next/link";
 import { Project, Post } from "@/app/interfaces";
 import Image from "next/image";
+import ProfileImageDebug from "@/app/components/ProfileImageDebug";
 
 // Define interfaces for liked items
 interface LikedPostUser {
@@ -263,28 +264,21 @@ export default function ProfilePage() {
           <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
             <div className="p-8">
               <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-                <div className="relative w-24 h-24 bg-green-100 rounded-full overflow-hidden flex items-center justify-center group">
-                  {session?.user?.image ? (
-                    <Image
-                      key={profileImageKey}
-                      src={session.user.image}
-                      alt={session.user.name || "User"}
-                      fill
-                      className="object-cover"
-                      style={{ aspectRatio: "1/1" }}
-                      unoptimized={session.user.image.startsWith('data:image')}
-                    />
-                  ) : (
-                    <FiUser className="text-green-500 text-4xl" />
-                  )}
-                  
-                  <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <FiCamera className="text-white text-xl" />
-                  </button>
-                </div>
+                <ProfileImageDebug 
+                  imageUrl={session?.user?.image || null}
+                  userName={session?.user?.name || undefined}
+                  size="lg"
+                  className="group"
+                  onClick={() => fileInputRef.current?.click()}
+                  showUploadOverlay={true}
+                />
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  className="hidden"
+                />
                 
                 <div className="flex-1 text-center md:text-left">
                   <h1 className="text-3xl font-bold text-gray-800">
@@ -636,13 +630,6 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept="image/*"
-        className="hidden"
-      />
     </div>
   );
 } 

@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { FiMenu, FiX, FiUser, FiLogOut, FiSettings, FiPlus } from 'react-icons/fi'
 import { useRouter, usePathname } from 'next/navigation'
+import ProfileImageDebug from './ProfileImageDebug'
 
 export default function Header() {
   const { data: session, status } = useSession()
@@ -71,15 +72,11 @@ export default function Header() {
                 >
                   <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-green-100">
                     {hasUserImage ? (
-                      <Image
-                        key={profileImageKey}
-                        src={userImageSrc}
-                        alt={session.user.name || "User"}
-                        fill
-                        className="object-cover"
-                        style={{ aspectRatio: "1/1" }}
-                        priority
-                        unoptimized={isBase64Image}
+                      <ProfileImageDebug
+                        imageUrl={userImageSrc}
+                        userName={session.user.name || undefined}
+                        size="sm"
+                        className="border-0"
                       />
                     ) : (
                       <div className="bg-green-100 w-full h-full flex items-center justify-center">
