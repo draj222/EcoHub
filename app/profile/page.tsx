@@ -65,6 +65,7 @@ export default function ProfilePage() {
   const [isLikedLoading, setIsLikedLoading] = useState(true);
   const [error, setError] = useState("");
   const [isUpdatingImage, setIsUpdatingImage] = useState(false);
+  const [profileImageKey, setProfileImageKey] = useState(Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -77,6 +78,8 @@ export default function ProfilePage() {
     if (status === "authenticated" && session?.user?.id) {
       fetchUserProjects();
       fetchLikedPosts();
+      // Force image refresh when session changes
+      setProfileImageKey(Date.now());
     }
   }, [status, session, router]);
 
@@ -202,13 +205,16 @@ export default function ProfilePage() {
         ...session,
         user: {
           ...session?.user,
-          image: uploadResult.fileUrl
+          image: uploadResult.fileUrl + '?v=' + Date.now() // Add cache busting parameter
         }
       });
       
+      // Update local state to force re-render
+      setProfileImageKey(Date.now());
+      
       console.log("Upload process completed successfully!");
       // Force a full page reload to update all components with the new image
-      window.location.href = '/profile';
+      window.location.href = '/profile?updated=' + Date.now();
     } catch (err) {
       console.error("Error updating profile picture:", err);
       setError(`Failed to update profile picture: ${err instanceof Error ? err.message : 'Please try again.'}`);
@@ -260,6 +266,7 @@ export default function ProfilePage() {
                 <div className="relative w-24 h-24 bg-green-100 rounded-full overflow-hidden flex items-center justify-center group">
                   {session?.user?.image ? (
                     <Image
+                      key={profileImageKey}
                       src={session.user.image}
                       alt={session.user.name || "User"}
                       fill

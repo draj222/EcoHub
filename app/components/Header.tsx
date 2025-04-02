@@ -2,16 +2,23 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { FiMenu, FiX, FiUser, FiLogOut, FiSettings, FiPlus } from 'react-icons/fi'
 import { useRouter, usePathname } from 'next/navigation'
 
 export default function Header() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [profileImageKey, setProfileImageKey] = useState(Date.now())
   const pathname = usePathname()
+  
+  // Refresh the component when session changes
+  useEffect(() => {
+    // Force image refresh when session changes
+    setProfileImageKey(Date.now())
+  }, [session?.user?.image])
   
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen)
@@ -65,6 +72,7 @@ export default function Header() {
                   <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-green-100">
                     {hasUserImage ? (
                       <Image
+                        key={profileImageKey}
                         src={userImageSrc}
                         alt={session.user.name || "User"}
                         fill
