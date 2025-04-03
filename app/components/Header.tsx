@@ -54,66 +54,16 @@ export default function Header() {
   const fetchNotifications = async () => {
     try {
       // This would be replaced with an actual API endpoint in your application
-      // For now, we'll simulate some notifications
-      // TODO: Replace with actual API call
+      // For now, we'll use an empty array for notifications
+      // In a real implementation, you would fetch from the server
       
-      // Simulated notifications
-      const mockNotifications: Notification[] = [
-        {
-          id: '1',
-          type: 'follow',
-          message: 'EcoFriend started following you',
-          read: false,
-          createdAt: new Date().toISOString(),
-          fromUser: {
-            id: 'user1',
-            name: 'EcoFriend',
-            image: null
-          },
-          link: '/profile/user1'
-        },
-        {
-          id: '2',
-          type: 'post',
-          message: 'GreenThumb published a new project: "Urban Garden"',
-          read: true,
-          createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-          fromUser: {
-            id: 'user2',
-            name: 'GreenThumb',
-            image: null
-          },
-          link: '/projects/123'
-        },
-        {
-          id: '3',
-          type: 'like',
-          message: 'EarthDefender liked your project',
-          contentTitle: 'Recycling Initiative',
-          read: false,
-          createdAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-          fromUser: {
-            id: 'user3',
-            name: 'EarthDefender',
-            image: null
-          },
-          link: '/projects/456'
-        },
-        {
-          id: '4',
-          type: 'comment',
-          message: 'PlantLover commented on your project',
-          contentTitle: 'Community Garden Plan',
-          read: false,
-          createdAt: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
-          fromUser: {
-            id: 'user4',
-            name: 'PlantLover',
-            image: null
-          },
-          link: '/projects/789#comments'
-        }
-      ];
+      // Start with no notifications for new users
+      const mockNotifications: Notification[] = [];
+      
+      // In production, you would fetch notifications from your API:
+      // const response = await fetch('/api/notifications');
+      // const data = await response.json();
+      // setNotifications(data);
       
       setNotifications(mockNotifications);
       
@@ -279,16 +229,6 @@ export default function Header() {
                             </Link>
                           ))
                         )}
-                      </div>
-                      
-                      <div className="px-4 py-2 border-t border-gray-100 text-center">
-                        <Link 
-                          href="/notifications"
-                          className="text-xs text-green-600 hover:text-green-800"
-                          onClick={() => setNotificationsOpen(false)}
-                        >
-                          View all notifications
-                        </Link>
                       </div>
                     </div>
                   )}
