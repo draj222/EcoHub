@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/Header";
-import { FiUser, FiCalendar, FiEdit, FiTrash2, FiCamera, FiUpload, FiHeart, FiMessageSquare } from "react-icons/fi";
+import { FiUser, FiCalendar, FiEdit, FiTrash2, FiCamera, FiUpload, FiHeart, FiMessageSquare, FiUsers, FiUserPlus, FiUserMinus } from "react-icons/fi";
 import Link from "next/link";
 import { Project, Post } from "@/app/interfaces";
 import Image from "next/image";
@@ -56,6 +56,13 @@ interface LikedProject {
 
 type LikedItem = LikedPost | LikedProject;
 
+interface User {
+  id: string;
+  name: string | null;
+  image: string | null;
+  email: string | null;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { data: session, status, update } = useSession();
@@ -64,10 +71,12 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'projects' | 'liked'>('projects');
   const [isLoading, setIsLoading] = useState(true);
   const [isLikedLoading, setIsLikedLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [isUpdatingImage, setIsUpdatingImage] = useState(false);
   const [profileImageKey, setProfileImageKey] = useState(Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [followers, setFollowers] = useState<User[]>([]);
+  const [following, setFollowing] = useState<User[]>([]);
 
   useEffect(() => {
     // Redirect unauthenticated users
@@ -79,6 +88,7 @@ export default function ProfilePage() {
     if (status === "authenticated" && session?.user?.id) {
       fetchUserProjects();
       fetchLikedPosts();
+      fetchFollowersAndFollowing();
       // Force image refresh when session changes
       setProfileImageKey(Date.now());
     }
@@ -119,6 +129,33 @@ export default function ProfilePage() {
       // Don't set error here to prevent disrupting the whole page
     } finally {
       setIsLikedLoading(false);
+    }
+  };
+
+  const fetchFollowersAndFollowing = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Fetch followers
+      const followersResponse = await fetch(
+        `/api/follow?userId=${session?.user?.id}&type=followers`
+      );
+      if (!followersResponse.ok) throw new Error('Failed to fetch followers');
+      const followersData = await followersResponse.json();
+      setFollowers(followersData);
+
+      // Fetch following
+      const followingResponse = await fetch(
+        `/api/follow?userId=${session?.user?.id}&type=following`
+      );
+      if (!followingResponse.ok) throw new Error('Failed to fetch following');
+      const followingData = await followingResponse.json();
+      setFollowing(followingData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -244,6 +281,23 @@ export default function ProfilePage() {
     }
   };
 
+  const handleFollow = async (userId: string) => {
+    try {
+      const response = await fetch('/api/follow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!response.ok) throw new Error('Failed to follow/unfollow user');
+      
+      // Refresh the lists
+      await fetchFollowersAndFollowing();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
   if (status === "loading" || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
@@ -288,6 +342,101 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-center md:justify-start mt-2 text-gray-500">
                     <FiCalendar className="mr-2" />
                     <span>Joined {new Date().toLocaleDateString()}</span>
+                  </div>
+                  
+                  {/* Followers/Following Stats */}
+                  <div className="flex items-center gap-4 mt-4">
+                    <div className="flex items-center gap-2">
+                      <FiUsers className="text-gray-500" />
+                      <span className="text-gray-600">
+                        {followers.length} Followers
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <FiUser className="text-gray-500" />
+                      <span className="text-gray-600">
+                        {following.length} Following
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Followers/Following Lists */}
+                  <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Followers List */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-800 mb-3">Followers</h3>
+                      {isLoading ? (
+                        <div className="text-center py-4">Loading...</div>
+                      ) : error ? (
+                        <div className="text-red-500 text-sm">{error}</div>
+                      ) : followers.length === 0 ? (
+                        <div className="text-gray-500 text-sm">No followers yet</div>
+                      ) : (
+                        <div className="space-y-3">
+                          {followers.map((user) => (
+                            <div
+                              key={user.id}
+                              className="flex items-center justify-between"
+                            >
+                              <div className="flex items-center gap-2">
+                                <ProfileImageDebug
+                                  imageUrl={user.image}
+                                  userName={user.name || undefined}
+                                  size="sm"
+                                />
+                                <span className="text-gray-800">{user.name}</span>
+                              </div>
+                              {user.id !== session?.user?.id && (
+                                <button
+                                  onClick={() => handleFollow(user.id)}
+                                  className="text-green-600 hover:text-green-700"
+                                >
+                                  <FiUserMinus className="w-5 h-5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Following List */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-800 mb-3">Following</h3>
+                      {isLoading ? (
+                        <div className="text-center py-4">Loading...</div>
+                      ) : error ? (
+                        <div className="text-red-500 text-sm">{error}</div>
+                      ) : following.length === 0 ? (
+                        <div className="text-gray-500 text-sm">Not following anyone yet</div>
+                      ) : (
+                        <div className="space-y-3">
+                          {following.map((user) => (
+                            <div
+                              key={user.id}
+                              className="flex items-center justify-between"
+                            >
+                              <div className="flex items-center gap-2">
+                                <ProfileImageDebug
+                                  imageUrl={user.image}
+                                  userName={user.name || undefined}
+                                  size="sm"
+                                />
+                                <span className="text-gray-800">{user.name}</span>
+                              </div>
+                              {user.id !== session?.user?.id && (
+                                <button
+                                  onClick={() => handleFollow(user.id)}
+                                  className="text-green-600 hover:text-green-700"
+                                >
+                                  <FiUserMinus className="w-5 h-5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="mt-4">
