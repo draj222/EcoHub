@@ -1,21 +1,33 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, Suspense, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/app/components/Header'
 import SignInMessage from '@/app/components/SignInMessage'
-import { FaEnvelope, FaLock } from 'react-icons/fa'
+import { FaEnvelope, FaLock, FaExclamationTriangle } from 'react-icons/fa'
 
 export default function SignIn() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   })
   const [error, setError] = useState('')
+  const [detailedError, setDetailedError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [debugMode, setDebugMode] = useState(false)
+
+  // Parse error from URL if present
+  useEffect(() => {
+    const errorParam = searchParams?.get('error')
+    if (errorParam) {
+      setError('Authentication error: ' + errorParam)
+      setDetailedError('Check console logs for more details')
+    }
+  }, [searchParams])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -27,6 +39,7 @@ export default function SignIn() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setDetailedError('')
     setLoading(true)
 
     // Basic validation
@@ -37,14 +50,18 @@ export default function SignIn() {
     }
 
     try {
+      console.log('Attempting to sign in with credentials...')
       const result = await signIn('credentials', {
         redirect: false,
         email: formData.email,
         password: formData.password,
       })
 
+      console.log('Sign in result:', result)
+
       if (result?.error) {
-        setError('Invalid email or password')
+        setError('Sign-in failed')
+        setDetailedError(result.error)
         setLoading(false)
         return
       }
@@ -53,7 +70,24 @@ export default function SignIn() {
       router.push('/')
       router.refresh()
     } catch (err) {
+      console.error('Sign in error:', err)
       setError('An error occurred during sign in')
+      setDetailedError(String(err))
+      setLoading(false)
+    }
+  }
+
+  const runDiagnostics = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/debug')
+      const data = await response.json()
+      console.log('Diagnostics result:', data)
+      setDetailedError(JSON.stringify(data, null, 2))
+      setLoading(false)
+    } catch (error) {
+      console.error('Diagnostics error:', error)
+      setDetailedError(String(error))
       setLoading(false)
     }
   }
@@ -76,7 +110,29 @@ export default function SignIn() {
 
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                {error}
+                <div className="flex items-center mb-1">
+                  <FaExclamationTriangle className="mr-2" />
+                  <span className="font-medium">{error}</span>
+                </div>
+                {detailedError && debugMode && (
+                  <pre className="text-xs mt-2 bg-red-50 p-2 rounded overflow-auto max-h-40">
+                    {detailedError}
+                  </pre>
+                )}
+                <div className="mt-2 text-xs flex justify-between items-center">
+                  <button 
+                    onClick={() => setDebugMode(!debugMode)}
+                    className="text-red-700 hover:text-red-800 underline"
+                  >
+                    {debugMode ? 'Hide details' : 'Show details'}
+                  </button>
+                  <button 
+                    onClick={runDiagnostics}
+                    className="text-red-700 hover:text-red-800 underline"
+                  >
+                    Run diagnostics
+                  </button>
+                </div>
               </div>
             )}
 
