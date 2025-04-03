@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { FiMenu, FiX, FiUser, FiLogOut, FiSettings, FiPlus, FiBell } from 'react-icons/fi'
 import { useRouter, usePathname } from 'next/navigation'
@@ -14,9 +14,13 @@ export default function Header() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [showNotifications, setShowNotifications] = useState(false)
   const [hasNewNotifications, setHasNewNotifications] = useState(false)
   const [profileImageKey, setProfileImageKey] = useState(Date.now())
   const pathname = usePathname()
+  const notificationRef = useRef<HTMLDivElement>(null)
+  const sseRef = useRef<EventSource | null>(null)
   
   // Notification interface
   interface Notification {
@@ -45,35 +49,65 @@ export default function Header() {
     if (status === 'authenticated' && session?.user?.id) {
       fetchNotifications();
       
-      // Poll for new notifications every minute
-      const intervalId = setInterval(fetchNotifications, 60000);
-      return () => clearInterval(intervalId);
+      // Set up SSE connection for real-time notifications
+      if (!sseRef.current) {
+        const eventSource = new EventSource('/api/notifications/sse')
+        sseRef.current = eventSource
+        
+        eventSource.onmessage = (event) => {
+          const data = JSON.parse(event.data)
+          
+          // Handle initial connection message
+          if (data.type === 'connected') {
+            console.log('Connected to notification stream')
+            return
+          }
+          
+          // Handle new notification
+          console.log('Received new notification:', data)
+          setNotifications(prev => [data, ...prev])
+          setUnreadCount(prev => prev + 1)
+          
+          // Optional: Show notification to user
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(data.message, {
+              icon: '/images/logo.png',
+              body: data.contentTitle || ''
+            })
+          }
+        }
+        
+        eventSource.onerror = (error) => {
+          console.error('SSE Error:', error)
+          if (sseRef.current) {
+            sseRef.current.close()
+            sseRef.current = null
+          }
+        }
+      }
+      
+      // Clean up on component unmount
+      return () => {
+        if (sseRef.current) {
+          sseRef.current.close()
+          sseRef.current = null
+        }
+      }
     }
   }, [status, session]);
   
   const fetchNotifications = async () => {
     try {
-      // Use our API endpoint to fetch notifications
-      const response = await fetch('/api/notifications');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch notifications');
+      const response = await fetch('/api/notifications')
+      if (response.ok) {
+        const data = await response.json()
+        setNotifications(data)
+        setUnreadCount(data.filter((n: Notification) => !n.read).length)
       }
-      
-      const data = await response.json() as Notification[];
-      setNotifications(data);
-      
-      // Check if there are any unread notifications
-      const hasUnread = data.some(notification => !notification.read);
-      setHasNewNotifications(hasUnread);
-      
     } catch (error) {
-      console.error('Failed to fetch notifications', error);
-      // Set empty array on error
-      setNotifications([]);
-      setHasNewNotifications(false);
+      console.error('Error fetching notifications:', error)
     }
-  };
+  }
   
   const markAsRead = (notificationId: string) => {
     // Update local state
