@@ -21,7 +21,7 @@ export default function Header() {
   // Notification interface
   interface Notification {
     id: string;
-    type: 'follow' | 'post';
+    type: 'follow' | 'post' | 'like' | 'comment';
     message: string;
     read: boolean;
     createdAt: string;
@@ -31,6 +31,7 @@ export default function Header() {
       image: string | null;
     };
     link?: string;
+    contentTitle?: string; // Title of the post/project being liked/commented on
   }
   
   // Refresh the component when session changes
@@ -83,6 +84,34 @@ export default function Header() {
             image: null
           },
           link: '/projects/123'
+        },
+        {
+          id: '3',
+          type: 'like',
+          message: 'EarthDefender liked your project',
+          contentTitle: 'Recycling Initiative',
+          read: false,
+          createdAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+          fromUser: {
+            id: 'user3',
+            name: 'EarthDefender',
+            image: null
+          },
+          link: '/projects/456'
+        },
+        {
+          id: '4',
+          type: 'comment',
+          message: 'PlantLover commented on your project',
+          contentTitle: 'Community Garden Plan',
+          read: false,
+          createdAt: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
+          fromUser: {
+            id: 'user4',
+            name: 'PlantLover',
+            image: null
+          },
+          link: '/projects/789#comments'
         }
       ];
       
@@ -234,6 +263,11 @@ export default function Header() {
                                   <p className="text-sm text-gray-900">
                                     {notification.message}
                                   </p>
+                                  {notification.contentTitle && (notification.type === 'like' || notification.type === 'comment') && (
+                                    <p className="text-xs text-gray-600 mt-1 italic">
+                                      "{notification.contentTitle}"
+                                    </p>
+                                  )}
                                   <p className="text-xs text-gray-500 mt-1">
                                     {new Date(notification.createdAt).toLocaleDateString()} • {new Date(notification.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                   </p>
