@@ -9,8 +9,8 @@ generator client {
 datasource db {
   provider = "postgresql"
   url = env("DATABASE_URL")
-  // Add directUrl for better connection handling
-  directUrl = env("DIRECT_DATABASE_URL")
+  // Remove directUrl as it's causing issues with migrations
+  // directUrl = env("DIRECT_DATABASE_URL")
   // Remove shadowDatabaseUrl as it's not needed for migrations in production
   // shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
@@ -76,6 +76,10 @@ model User {
   participations    VolunteerParticipant[] @relation("Participations")
   opportunityComments OpportunityComment[]
   
+  // Added for notifications
+  notifications     Notification[] @relation("UserNotifications")
+  actorNotifications Notification[] @relation("ActorNotifications")
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -117,6 +121,7 @@ model Project {
   
   comments    Comment[]
   likes       Like[]
+  notifications Notification[]
   
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -288,4 +293,26 @@ model Message {
   
   receiverId  String
   receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+}
+
+// Notification model for user activity notifications
+model Notification {
+  id          String   @id @default(cuid())
+  type        String   // follow, like, comment, etc.
+  message     String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  contentTitle String?
+  
+  // Recipient of the notification
+  userId      String
+  user        User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // User who triggered the notification
+  actorId     String
+  actor       User     @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: Cascade)
+  
+  // Optional references to related content
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 } 
