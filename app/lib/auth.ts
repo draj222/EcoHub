@@ -39,6 +39,17 @@ export const authOptions: NextAuthOptions = {
 
         try {
           console.log("🔍 Looking up user:", credentials.email);
+          console.log("Database connection check: Attempting to connect to database...");
+          
+          // Try a simple database operation to verify connection
+          try {
+            const dbTest = await prisma.$queryRaw`SELECT 1 as connected`;
+            console.log("Database connection test result:", dbTest);
+          } catch (dbError) {
+            console.error("❌ Database connection error:", dbError);
+            throw new Error("Database connection error");
+          }
+          
           const user = await prisma.user.findUnique({
             where: {
               email: credentials.email,
@@ -109,5 +120,5 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  debug: process.env.NODE_ENV === "development",
+  debug: true, // Enable debug mode for all environments to help troubleshoot
 }; 
