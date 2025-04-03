@@ -53,26 +53,25 @@ export default function Header() {
   
   const fetchNotifications = async () => {
     try {
-      // This would be replaced with an actual API endpoint in your application
-      // For now, we'll use an empty array for notifications
-      // In a real implementation, you would fetch from the server
+      // Use our API endpoint to fetch notifications
+      const response = await fetch('/api/notifications');
       
-      // Start with no notifications for new users
-      const mockNotifications: Notification[] = [];
+      if (!response.ok) {
+        throw new Error('Failed to fetch notifications');
+      }
       
-      // In production, you would fetch notifications from your API:
-      // const response = await fetch('/api/notifications');
-      // const data = await response.json();
-      // setNotifications(data);
-      
-      setNotifications(mockNotifications);
+      const data = await response.json() as Notification[];
+      setNotifications(data);
       
       // Check if there are any unread notifications
-      const hasUnread = mockNotifications.some(notification => !notification.read);
+      const hasUnread = data.some(notification => !notification.read);
       setHasNewNotifications(hasUnread);
       
     } catch (error) {
       console.error('Failed to fetch notifications', error);
+      // Set empty array on error
+      setNotifications([]);
+      setHasNewNotifications(false);
     }
   };
   
