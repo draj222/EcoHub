@@ -621,13 +621,6 @@ export default function ProfilePage() {
                   
                   <div className="flex justify-center space-x-4">
                     <Link 
-                      href="/forum"
-                      className="text-green-500 hover:text-green-700 font-medium"
-                    >
-                      Browse the forum
-                    </Link>
-                    <span className="text-gray-300">|</span>
-                    <Link 
                       href="/projects"
                       className="text-green-500 hover:text-green-700 font-medium"
                     >
