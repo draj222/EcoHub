@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
 
-// This is an admin-only endpoint for fixing specific user issues
+// Handle GET requests for browser compatibility
+export async function GET(request: NextRequest) {
+  // Reuse the same logic for both GET and DELETE
+  return await handleDeleteUser(request);
+}
+
+// Original DELETE method for API clients
 export async function DELETE(request: NextRequest) {
+  return await handleDeleteUser(request);
+}
+
+// Shared logic for both methods
+async function handleDeleteUser(request: NextRequest) {
   // Get email from URL query parameters
   const searchParams = request.nextUrl.searchParams;
   const email = searchParams.get('email');
