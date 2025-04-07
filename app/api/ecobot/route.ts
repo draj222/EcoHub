@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/lib/auth';
 
+// Import OpenAI directly at the top level
+import OpenAI from 'openai';
+
 // Define a fallback function to use when OpenAI is not available
 const getFallbackResponse = (message: string) => {
   // List of predefined responses about sustainability and eco-friendly practices
@@ -41,17 +44,13 @@ const getFallbackResponse = (message: string) => {
     return "Machine learning can benefit sustainability efforts through optimizing energy usage, predicting weather patterns, monitoring wildlife populations, and improving waste sorting. It's a powerful tool for environmental research and conservation.";
   }
   
+  if (lowerMessage.includes('project') || lowerMessage.includes('idea') || lowerMessage.includes('create')) {
+    return "For a novel sustainability project, consider creating a community garden with water-saving irrigation, a neighborhood composting system, a local repair cafe to reduce waste, or a citizen science project to monitor local biodiversity. What specific aspects are you interested in?";
+  }
+  
   // Return a random response if no keywords match
   return responses[Math.floor(Math.random() * responses.length)];
 };
-
-let openai: any;
-try {
-  // Dynamically import OpenAI to prevent build issues
-  openai = require('openai');
-} catch (error) {
-  console.warn('OpenAI package not available, using fallback responses');
-}
 
 const SYSTEM_PROMPT = `You are EcoBot, an AI assistant for the EcoHub platform. 
 Your primary purpose is to help users with environmental sustainability topics and eco-friendly projects.
@@ -94,45 +93,61 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
     
-    // Check if OpenAI is available
-    const OpenAI = openai;
-    if (!OpenAI || !process.env.OPENAI_API_KEY) {
-      console.log('Using fallback response as OpenAI is not configured');
-      const fallbackResponse = getFallbackResponse(message);
-      return NextResponse.json({ message: fallbackResponse });
+    // Log that we're processing a request
+    console.log(`[EcoBot] Processing request from ${userId}`);
+    console.log(`[EcoBot] API key availability: ${process.env.OPENAI_API_KEY ? 'Available' : 'Not available'}`);
+    
+    // Try to use OpenAI if API key is available
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        // Initialize OpenAI client
+        const openai = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY
+        });
+        
+        // Format conversation history for OpenAI
+        const formattedMessages = [
+          { role: 'system', content: SYSTEM_PROMPT },
+          ...history.map((msg: any) => ({
+            role: msg.role,
+            content: msg.content
+          })),
+          { role: 'user', content: message }
+        ];
+        
+        console.log(`[EcoBot] Sending request to OpenAI with ${formattedMessages.length} messages`);
+        
+        // Get response from OpenAI
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: formattedMessages,
+          max_tokens: 1000,
+          temperature: 0.7,
+          user: userId
+        });
+        
+        const responseMessage = completion.choices[0].message.content || 'Sorry, I couldn\'t generate a response.';
+        
+        // Log the conversation
+        console.log(`[EcoBot] User: ${message}`);
+        console.log(`[EcoBot] Bot (OpenAI): ${responseMessage.substring(0, 50)}...`);
+        
+        return NextResponse.json({ message: responseMessage });
+      } catch (openaiError) {
+        // Log the OpenAI-specific error
+        console.error('Error calling OpenAI API:', openaiError);
+        console.log('Falling back to local responses due to OpenAI API error');
+      }
+    } else {
+      console.log('OpenAI API key not found, using fallback responses');
     }
     
-    // Initialize OpenAI client
-    const openaiClient = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    // If we reach here, either the API key wasn't available or there was an error with OpenAI
+    // Use the fallback response system
+    const fallbackResponse = getFallbackResponse(message);
+    console.log(`[EcoBot] Bot (Fallback): ${fallbackResponse}`);
     
-    // Format conversation history for OpenAI
-    const formattedMessages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...history.map((msg: any) => ({
-        role: msg.role,
-        content: msg.content
-      })),
-      { role: 'user', content: message }
-    ];
-    
-    // Get response from OpenAI
-    const completion = await openaiClient.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: formattedMessages,
-      max_tokens: 1000,
-      temperature: 0.7,
-      user: userId
-    });
-    
-    const responseMessage = completion.choices[0].message.content || 'Sorry, I couldn\'t generate a response.';
-    
-    // Log the conversation (optional)
-    console.log(`[EcoBot] User: ${message}`);
-    console.log(`[EcoBot] Bot: ${responseMessage}`);
-    
-    return NextResponse.json({ message: responseMessage });
+    return NextResponse.json({ message: fallbackResponse });
   } catch (error) {
     console.error('Error in EcoBot API:', error);
     
