@@ -25,6 +25,7 @@ export default function EcoBot() {
   const [inputMessage, setInputMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [apiError, setApiError] = useState<string | null>(null)
   
   // Scroll to bottom of messages when new messages are added
   useEffect(() => {
@@ -53,8 +54,17 @@ export default function EcoBot() {
     setMessages(prev => [...prev, userMessage])
     setInputMessage('')
     setIsLoading(true)
+    setApiError(null)
     
     try {
+      // Format the message history for the API
+      const historyForApi = messages
+        .slice(-6) // Use recent messages for context
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+      
       // Call API to get bot response
       const response = await fetch('/api/ecobot', {
         method: 'POST',
@@ -63,12 +73,12 @@ export default function EcoBot() {
         },
         body: JSON.stringify({
           message: inputMessage,
-          history: messages.slice(-6) // Send last 6 messages for context
+          history: historyForApi
         })
       })
       
       if (!response.ok) {
-        throw new Error('Failed to get response from EcoBot')
+        throw new Error(`Failed to get response from EcoBot: ${response.status}`)
       }
       
       const data = await response.json()
@@ -84,6 +94,9 @@ export default function EcoBot() {
       setMessages(prev => [...prev, botMessage])
     } catch (error) {
       console.error('Error getting bot response:', error)
+      
+      // Set error message
+      setApiError(error instanceof Error ? error.message : 'Unknown error')
       
       // Add error message
       const errorMessage: Message = {
@@ -157,6 +170,12 @@ export default function EcoBot() {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+            {apiError && (
+              <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 mb-4 text-xs">
+                <p>Error connecting to EcoBot: {apiError}</p>
+                <p className="mt-1">Using local responses instead.</p>
               </div>
             )}
             <div ref={messagesEndRef} />

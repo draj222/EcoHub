@@ -92,22 +92,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
     
-    // Log that we're processing a request
-    console.log(`[EcoBot] Processing request from ${userId}`);
-    console.log(`[EcoBot] API key availability: ${process.env.OPENAI_API_KEY ? 'Available' : 'Not available'}`);
+    // Enhanced debugging logs
+    console.log(`[EcoBot DEBUG] Request received for: "${message}"`);
+    console.log(`[EcoBot DEBUG] API key status: ${process.env.OPENAI_API_KEY ? 'Key exists with length ' + process.env.OPENAI_API_KEY.length : 'No key found'}`);
+    console.log(`[EcoBot DEBUG] Message history length: ${history.length}`);
     
     // Try to use OpenAI if API key is available
     if (process.env.OPENAI_API_KEY) {
+      console.log('[EcoBot DEBUG] Attempting to use OpenAI API');
       try {
+        // Log start of dynamic import
+        console.log('[EcoBot DEBUG] Starting dynamic import of OpenAI');
+        
         // Dynamic import of OpenAI - only happens at runtime, not build time
         const { default: OpenAI } = await import('openai');
+        console.log('[EcoBot DEBUG] OpenAI import successful');
         
         // Initialize OpenAI client
+        console.log('[EcoBot DEBUG] Initializing OpenAI client');
         const openai = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY
+          apiKey: process.env.OPENAI_API_KEY,
+          dangerouslyAllowBrowser: false,
         });
+        console.log('[EcoBot DEBUG] OpenAI client initialized');
         
         // Format conversation history for OpenAI
+        console.log('[EcoBot DEBUG] Formatting messages');
         const formattedMessages = [
           { role: 'system', content: SYSTEM_PROMPT },
           ...history.map((msg: any) => ({
@@ -117,7 +127,8 @@ export async function POST(request: NextRequest) {
           { role: 'user', content: message }
         ];
         
-        console.log(`[EcoBot] Sending request to OpenAI with ${formattedMessages.length} messages`);
+        // Log the sending request
+        console.log(`[EcoBot DEBUG] Sending request to OpenAI API (${formattedMessages.length} messages)`);
         
         // Get response from OpenAI
         const completion = await openai.chat.completions.create({
@@ -128,30 +139,30 @@ export async function POST(request: NextRequest) {
           user: userId
         });
         
+        console.log('[EcoBot DEBUG] Received response from OpenAI API');
         const responseMessage = completion.choices[0].message.content || 'Sorry, I couldn\'t generate a response.';
         
-        // Log the conversation
-        console.log(`[EcoBot] User: ${message}`);
-        console.log(`[EcoBot] Bot (OpenAI): ${responseMessage.substring(0, 50)}...`);
-        
+        console.log(`[EcoBot DEBUG] Full OpenAI response: ${responseMessage}`);
         return NextResponse.json({ message: responseMessage });
       } catch (openaiError) {
-        // Log the OpenAI-specific error
-        console.error('Error calling OpenAI API:', openaiError);
-        console.log('Falling back to local responses due to OpenAI API error');
+        // Log detailed error information
+        console.error('[EcoBot ERROR] OpenAI API error:', openaiError);
+        console.error('[EcoBot ERROR] Full error details:', JSON.stringify(openaiError, null, 2));
+        console.log('[EcoBot ERROR] Falling back to local responses due to OpenAI API error');
       }
     } else {
-      console.log('OpenAI API key not found, using fallback responses');
+      console.log('[EcoBot DEBUG] No API key found, using fallback responses');
     }
     
     // If we reach here, either the API key wasn't available or there was an error with OpenAI
     // Use the fallback response system
+    console.log('[EcoBot DEBUG] Using fallback response system');
     const fallbackResponse = getFallbackResponse(message);
-    console.log(`[EcoBot] Bot (Fallback): ${fallbackResponse}`);
+    console.log(`[EcoBot DEBUG] Selected fallback response: "${fallbackResponse}"`);
     
     return NextResponse.json({ message: fallbackResponse });
   } catch (error) {
-    console.error('Error in EcoBot API:', error);
+    console.error('[EcoBot ERROR] Unexpected error in EcoBot API:', error);
     
     // Provide a fallback response in case of errors
     const fallbackResponse = "I'm having trouble connecting to my knowledge base right now. Here's a general tip: Consider starting small with sustainability actions like reducing single-use plastics, conserving water, or using energy-efficient appliances. These steps make a difference!";
