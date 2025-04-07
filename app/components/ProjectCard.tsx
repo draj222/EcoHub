@@ -3,8 +3,9 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { FiUser, FiHeart, FiMessageSquare } from 'react-icons/fi'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Project } from '@/app/interfaces'
+import { estimateCarbonImpact } from '@/app/lib/ml-utils'
 
 interface ProjectCardProps {
   project: Project
@@ -13,6 +14,7 @@ interface ProjectCardProps {
 export default function ProjectCard({ project }: ProjectCardProps) {
   const [liked, setLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(project.likesCount || 0)
+  const [carbonImpact, setCarbonImpact] = useState<number | null>(null)
 
   const handleLike = async () => {
     try {
@@ -32,6 +34,19 @@ export default function ProjectCard({ project }: ProjectCardProps) {
       console.error('Error liking project:', error)
     }
   }
+
+  useEffect(() => {
+    // Calculate carbon impact when the project loads
+    const calculateImpact = async () => {
+      const impact = await estimateCarbonImpact(
+        project.description || '',
+        project.category || 'Other'
+      )
+      setCarbonImpact(impact)
+    }
+    
+    calculateImpact()
+  }, [project])
 
   // Determine if the user has a valid profile image
   const hasUserImage = project.user?.image && 
@@ -60,6 +75,15 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         <p className="text-gray-600 mb-4 line-clamp-2">
           {project.description}
         </p>
+        
+        {carbonImpact !== null && (
+          <div className="mt-2 text-xs flex items-center">
+            <div className={`font-medium ${carbonImpact < 0 ? 'text-green-600' : 'text-orange-600'}`}>
+              {carbonImpact < 0 ? 'Est. Positive Impact' : 'Est. Neutral Impact'}: 
+              <span className="ml-1">{Math.abs(carbonImpact)} CO₂e</span>
+            </div>
+          </div>
+        )}
         
         <div className="flex flex-wrap gap-2 mb-4">
           {Array.isArray(project.tags) && project.tags.map((tag: string, index: number) => (
