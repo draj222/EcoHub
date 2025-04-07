@@ -97,25 +97,13 @@ export async function POST(request: NextRequest) {
     console.log(`[EcoBot DEBUG] API key status: ${process.env.OPENAI_API_KEY ? 'Key exists with length ' + process.env.OPENAI_API_KEY.length : 'No key found'}`);
     console.log(`[EcoBot DEBUG] Message history length: ${history.length}`);
     
+    let responseMessage = null;
+    
     // Try to use OpenAI if API key is available
     if (process.env.OPENAI_API_KEY) {
       console.log('[EcoBot DEBUG] Attempting to use OpenAI API');
+      
       try {
-        // Log start of dynamic import
-        console.log('[EcoBot DEBUG] Starting dynamic import of OpenAI');
-        
-        // Dynamic import of OpenAI - only happens at runtime, not build time
-        const { default: OpenAI } = await import('openai');
-        console.log('[EcoBot DEBUG] OpenAI import successful');
-        
-        // Initialize OpenAI client
-        console.log('[EcoBot DEBUG] Initializing OpenAI client');
-        const openai = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY,
-          dangerouslyAllowBrowser: false,
-        });
-        console.log('[EcoBot DEBUG] OpenAI client initialized');
-        
         // Format conversation history for OpenAI
         console.log('[EcoBot DEBUG] Formatting messages');
         const formattedMessages = [
@@ -127,40 +115,35 @@ export async function POST(request: NextRequest) {
           { role: 'user', content: message }
         ];
         
-        // Log the sending request
-        console.log(`[EcoBot DEBUG] Sending request to OpenAI API (${formattedMessages.length} messages)`);
+        // Use the separate helper to avoid build-time issues
+        console.log('[EcoBot DEBUG] Using OpenAI helper');
         
-        // Get response from OpenAI
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-3.5-turbo',
-          messages: formattedMessages,
-          max_tokens: 1000,
-          temperature: 0.7,
-          user: userId
-        });
+        // Dynamic import of the helper (using eval to prevent build-time analysis)
+        const helper = await Function('return import("/app/lib/openai-helper.js")')();
         
-        console.log('[EcoBot DEBUG] Received response from OpenAI API');
-        const responseMessage = completion.choices[0].message.content || 'Sorry, I couldn\'t generate a response.';
-        
-        console.log(`[EcoBot DEBUG] Full OpenAI response: ${responseMessage}`);
-        return NextResponse.json({ message: responseMessage });
+        if (helper && helper.getOpenAIResponse) {
+          responseMessage = await helper.getOpenAIResponse(formattedMessages, userId);
+          console.log('[EcoBot DEBUG] OpenAI response received');
+        } else {
+          console.log('[EcoBot DEBUG] Helper not found, falling back');
+        }
       } catch (openaiError) {
         // Log detailed error information
         console.error('[EcoBot ERROR] OpenAI API error:', openaiError);
-        console.error('[EcoBot ERROR] Full error details:', JSON.stringify(openaiError, null, 2));
         console.log('[EcoBot ERROR] Falling back to local responses due to OpenAI API error');
       }
     } else {
       console.log('[EcoBot DEBUG] No API key found, using fallback responses');
     }
     
-    // If we reach here, either the API key wasn't available or there was an error with OpenAI
-    // Use the fallback response system
-    console.log('[EcoBot DEBUG] Using fallback response system');
-    const fallbackResponse = getFallbackResponse(message);
-    console.log(`[EcoBot DEBUG] Selected fallback response: "${fallbackResponse}"`);
+    // If we didn't get a response from OpenAI, use the fallback
+    if (!responseMessage) {
+      console.log('[EcoBot DEBUG] Using fallback response system');
+      responseMessage = getFallbackResponse(message);
+      console.log(`[EcoBot DEBUG] Selected fallback response: "${responseMessage}"`);
+    }
     
-    return NextResponse.json({ message: fallbackResponse });
+    return NextResponse.json({ message: responseMessage });
   } catch (error) {
     console.error('[EcoBot ERROR] Unexpected error in EcoBot API:', error);
     
