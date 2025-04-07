@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/lib/auth';
 
-// Import OpenAI directly at the top level
-import OpenAI from 'openai';
+// Remove direct import of OpenAI
 
 // Define a fallback function to use when OpenAI is not available
 const getFallbackResponse = (message: string) => {
@@ -100,6 +99,9 @@ export async function POST(request: NextRequest) {
     // Try to use OpenAI if API key is available
     if (process.env.OPENAI_API_KEY) {
       try {
+        // Dynamic import of OpenAI - only happens at runtime, not build time
+        const { default: OpenAI } = await import('openai');
+        
         // Initialize OpenAI client
         const openai = new OpenAI({
           apiKey: process.env.OPENAI_API_KEY
