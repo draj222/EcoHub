@@ -118,14 +118,41 @@ export async function POST(request: NextRequest) {
         // Use the separate helper to avoid build-time issues
         console.log('[EcoBot DEBUG] Using OpenAI helper');
         
-        // Dynamic import of the helper (using eval to prevent build-time analysis)
-        const helper = await Function('return import("/app/lib/openai-helper.js")')();
+        // FIXED: Use a relative import path instead of absolute path
+        // Try multiple methods to import the helper
+        let helper = null;
+        try {
+          // Method 1: Standard dynamic import
+          helper = await import('@/app/lib/openai-helper.js');
+          console.log('[EcoBot DEBUG] Successfully imported helper using standard import');
+        } catch (importError) {
+          console.log('[EcoBot DEBUG] Standard import failed, trying alternative method');
+          try {
+            // Method 2: Try using require
+            helper = { getOpenAIResponse: require('@/app/lib/openai-helper.js').getOpenAIResponse };
+            console.log('[EcoBot DEBUG] Successfully imported helper using require');
+          } catch (requireError) {
+            console.log('[EcoBot DEBUG] Require method failed too, trying direct path');
+            try {
+              // Method 3: Last resort - try using Function with relative path
+              helper = await Function('return import("../../lib/openai-helper.js")')();
+              console.log('[EcoBot DEBUG] Successfully imported helper using Function with relative path');
+            } catch (finalError) {
+              console.error('[EcoBot ERROR] All import methods failed:', finalError);
+            }
+          }
+        }
         
         if (helper && helper.getOpenAIResponse) {
+          console.log('[EcoBot DEBUG] Helper found, calling OpenAI');
           responseMessage = await helper.getOpenAIResponse(formattedMessages, userId);
-          console.log('[EcoBot DEBUG] OpenAI response received');
+          if (responseMessage) {
+            console.log('[EcoBot DEBUG] OpenAI response received:', responseMessage.substring(0, 50) + '...');
+          } else {
+            console.log('[EcoBot DEBUG] OpenAI returned null response');
+          }
         } else {
-          console.log('[EcoBot DEBUG] Helper not found, falling back');
+          console.log('[EcoBot DEBUG] Helper not found or invalid, falling back');
         }
       } catch (openaiError) {
         // Log detailed error information
