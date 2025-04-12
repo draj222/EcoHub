@@ -178,6 +178,8 @@ export default function Header() {
           <nav className="hidden md:flex space-x-8">
             <Link href="/" className="text-gray-600 hover:text-green-600">Home</Link>
             <Link href="/projects" className="text-gray-600 hover:text-green-600">Projects</Link>
+            <Link href="/opportunities" className="text-gray-600 hover:text-green-600">Opportunities</Link>
+            <Link href="/environmental-data" className="text-gray-600 hover:text-green-600">Environmental Data</Link>
             <Link href="/community" className="text-gray-600 hover:text-green-600">Volunteer</Link>
             {session && (
               <Link href="/messages" className="text-gray-600 hover:text-green-600">Messages</Link>
@@ -379,6 +381,20 @@ export default function Header() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Projects
+              </Link>
+              <Link 
+                href="/opportunities" 
+                className="text-gray-600 hover:text-green-600"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Opportunities
+              </Link>
+              <Link 
+                href="/environmental-data" 
+                className="text-gray-600 hover:text-green-600"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Environmental Data
               </Link>
               <Link 
                 href="/community" 

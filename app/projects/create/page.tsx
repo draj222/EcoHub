@@ -82,19 +82,30 @@ export default function CreateProjectPage() {
         const formData = new FormData();
         formData.append("file", selectedFile);
         
-        const uploadResponse = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-        
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json();
-          throw new Error(errorData.error || "Failed to upload image");
+        try {
+          const uploadResponse = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
+          
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.error || "Failed to upload image");
+          }
+          
+          const { fileUrl } = await uploadResponse.json();
+          imageUrl = fileUrl;
+        } catch (uploadError) {
+          console.error("Error uploading image:", uploadError);
+          throw new Error("Failed to upload image. Please try again.");
         }
-        
-        const { fileUrl } = await uploadResponse.json();
-        imageUrl = fileUrl;
       }
+
+      // Format tags: split by comma and trim whitespace
+      const tagsArray = formData.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag !== "");
 
       // Then create the project with the image URL
       const response = await fetch("/api/projects", {
@@ -105,7 +116,7 @@ export default function CreateProjectPage() {
         body: JSON.stringify({
           ...formData,
           imageUrl,
-          authorId: session?.user?.id,
+          tags: tagsArray,
         }),
       });
 
