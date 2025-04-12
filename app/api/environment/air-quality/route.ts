@@ -143,7 +143,13 @@ function formatAirQualityData(currentData: any, forecastData: any | null, days: 
         });
       } else {
         // If no forecast is available, duplicate the last known data with slight variations
-        const lastKnown = formattedData[formattedData.length - 1];
+        const lastKnown: {
+          date: string;
+          aqi: number;
+          pm25: number;
+          ozone: number;
+          quality: string;
+        } = formattedData[formattedData.length - 1];
         
         formattedData.push({
           date: dateStr,
