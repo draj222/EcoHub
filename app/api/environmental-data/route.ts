@@ -1,104 +1,169 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-// NOAA API endpoints
-const NOAA_API_BASE = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter';
-const SOFAR_API_BASE = 'https://api.sofarocean.com/api';
+// List of data sources we can pull from
+const DATA_SOURCES = {
+  NOAA_BUOYS: 'noaa_buoys',
+  SOFAR_OCEAN: 'sofar_ocean',
+  AIR_QUALITY: 'air_quality',
+};
 
-// Cache responses for 5 minutes to avoid rate limiting
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
-let lastFetchTime = 0;
-let cachedData: any = null;
-
-async function fetchNOAAData() {
-  try {
-    const response = await fetch(
-      `${NOAA_API_BASE}?product=water_temperature&application=NOS.COOPS.TAC.WL&station=9414290&time_zone=GMT&units=english&interval=6&format=json&date=latest`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
+// Mock data for development, would be replaced with actual API calls
+const MOCK_DATA = {
+  [DATA_SOURCES.NOAA_BUOYS]: [
+    {
+      id: 'buoy-41009',
+      name: 'CANAVERAL 20 NM East of Cape Canaveral, FL',
+      lat: 28.501,
+      lng: -80.184,
+      readings: {
+        waterTemp: 25.6, // °C
+        airTemp: 27.3, // °C
+        windSpeed: 12.4, // knots
+        windDirection: 'NE',
+        waveHeight: 1.3, // meters
+        timestamp: new Date().toISOString(),
       }
-    );
-
-    if (!response.ok) {
-      throw new Error(`NOAA API error: ${response.status}`);
+    },
+    {
+      id: 'buoy-42039',
+      name: 'PENSACOLA 115 NM South of Pensacola, FL',
+      lat: 28.794,
+      lng: -86.016,
+      readings: {
+        waterTemp: 26.2, // °C
+        airTemp: 28.1, // °C
+        windSpeed: 8.2, // knots
+        windDirection: 'SE',
+        waveHeight: 0.9, // meters
+        timestamp: new Date().toISOString(),
+      }
+    },
+  ],
+  [DATA_SOURCES.SOFAR_OCEAN]: [
+    {
+      id: 'spot-00124',
+      name: 'Florida Reef Tract',
+      lat: 25.12,
+      lng: -81.78,
+      readings: {
+        waterTemp: 27.1, // °C
+        salinity: 35.2, // PSU
+        pH: 8.1,
+        dissolvedOxygen: 6.8, // mg/L
+        timestamp: new Date().toISOString(),
+      }
+    },
+    {
+      id: 'spot-00218',
+      name: 'Caribbean Basin',
+      lat: 17.45,
+      lng: -67.23,
+      readings: {
+        waterTemp: 28.3, // °C
+        salinity: 34.9, // PSU
+        pH: 8.0,
+        dissolvedOxygen: 7.1, // mg/L
+        timestamp: new Date().toISOString(),
+      }
     }
+  ],
+  [DATA_SOURCES.AIR_QUALITY]: [
+    {
+      id: 'air-nyc',
+      name: 'New York City',
+      lat: 40.7128,
+      lng: -74.0060,
+      readings: {
+        aqi: 62,
+        pm25: 15.2, // µg/m³
+        pm10: 28.5, // µg/m³
+        o3: 31.4, // ppb
+        no2: 22.1, // ppb
+        timestamp: new Date().toISOString(),
+      }
+    },
+    {
+      id: 'air-la',
+      name: 'Los Angeles',
+      lat: 34.0522,
+      lng: -118.2437,
+      readings: {
+        aqi: 89,
+        pm25: 23.7, // µg/m³
+        pm10: 42.1, // µg/m³
+        o3: 45.2, // ppb
+        no2: 31.8, // ppb
+        timestamp: new Date().toISOString(),
+      }
+    }
+  ],
+};
 
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching NOAA data:', error);
-    return null;
-  }
+// In a real implementation, these would be API calls to environmental data providers
+async function fetchNOAABuoyData() {
+  // Would make actual API call here to NOAA buoy API
+  // Example: const response = await fetch('https://api.noaa.gov/buoys?apiKey=YOUR_API_KEY');
+  
+  return MOCK_DATA[DATA_SOURCES.NOAA_BUOYS];
 }
 
-async function fetchSofarData() {
-  try {
-    if (!process.env.SOFAR_API_KEY) {
-      console.error('Sofar API key not found');
-      return null;
-    }
-
-    const response = await fetch(
-      `${SOFAR_API_BASE}/spots/latest`,
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.SOFAR_API_KEY}`,
-          'Accept': 'application/json',
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Sofar API error: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching Sofar data:', error);
-    return null;
-  }
+async function fetchSofarOceanData() {
+  // Would make actual API call here to Sofar Ocean API
+  // Example: const response = await fetch('https://api.sofarocean.com/v1/spotters?token=YOUR_API_TOKEN');
+  
+  return MOCK_DATA[DATA_SOURCES.SOFAR_OCEAN];
 }
 
-export async function GET() {
+async function fetchAirQualityData() {
+  // Would make actual API call here to air quality API (e.g., AirNow, IQAir)
+  // Example: const response = await fetch('https://api.airnow.gov/data?api_key=YOUR_API_KEY');
+  
+  return MOCK_DATA[DATA_SOURCES.AIR_QUALITY];
+}
+
+export async function GET(request: NextRequest) {
   try {
-    const now = Date.now();
+    const searchParams = request.nextUrl.searchParams;
+    const source = searchParams.get('source');
     
-    // Return cached data if it's still valid
-    if (cachedData && now - lastFetchTime < CACHE_DURATION) {
-      return NextResponse.json(cachedData);
+    let data = {};
+    let sourceType = 'all';
+    
+    // Fetch data from the specified source or all sources
+    if (source === DATA_SOURCES.NOAA_BUOYS) {
+      data = await fetchNOAABuoyData();
+      sourceType = 'noaa_buoys';
+    } else if (source === DATA_SOURCES.SOFAR_OCEAN) {
+      data = await fetchSofarOceanData();
+      sourceType = 'sofar_ocean';
+    } else if (source === DATA_SOURCES.AIR_QUALITY) {
+      data = await fetchAirQualityData();
+      sourceType = 'air_quality';
+    } else {
+      // Fetch from all sources if no specific source is requested
+      const [noaaBuoys, sofarOcean, airQuality] = await Promise.all([
+        fetchNOAABuoyData(),
+        fetchSofarOceanData(),
+        fetchAirQualityData()
+      ]);
+      
+      data = {
+        noaa_buoys: noaaBuoys,
+        sofar_ocean: sofarOcean,
+        air_quality: airQuality
+      };
     }
-
-    // Fetch new data
-    const [noaaData, sofarData] = await Promise.all([
-      fetchNOAAData(),
-      fetchSofarData()
-    ]);
-
-    // Process and combine the data
-    const processedData = {
-      timestamp: new Date().toISOString(),
-      noaa: noaaData ? {
-        waterTemperature: noaaData.data?.[0]?.v,
-        station: noaaData.metadata?.station,
-        units: noaaData.metadata?.units
-      } : null,
-      sofar: sofarData ? {
-        waveHeight: sofarData.waveHeight,
-        wavePeriod: sofarData.wavePeriod,
-        windSpeed: sofarData.windSpeed,
-        windDirection: sofarData.windDirection
-      } : null
-    };
-
-    // Update cache
-    cachedData = processedData;
-    lastFetchTime = now;
-
-    return NextResponse.json(processedData);
+    
+    return NextResponse.json({
+      success: true,
+      source: sourceType,
+      data,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
-    console.error('Error processing environmental data:', error);
+    console.error('Error fetching environmental data:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch environmental data' },
+      { success: false, error: 'Failed to fetch environmental data' },
       { status: 500 }
     );
   }
