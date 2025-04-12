@@ -117,7 +117,7 @@ function formatClimatePredictionData(meteoData: any, coordinates: { lat: number;
         };
     
     for (let i = 0; i < daysToAdd; i++) {
-      const day = formattedData.length + i;
+      const day: number = formattedData.length + i;
       const date = new Date(currentDate);
       date.setDate(date.getDate() + day);
       const dayFactor = day / days;
